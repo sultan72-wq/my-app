@@ -45,7 +45,20 @@ client.on('messageCreate', async msg => {
     "تحويل": member.permissions.has(ADMIN) ? "التحويل الى Md7 فقط" : null
   };
 
-  if (replies[content]) msg.reply(replies[content]);
+  // الردود النصية العادية
+  if (replies[content]) {
+    msg.reply(replies[content]);
+    return;
+  }
+
+  // الرد الخاص بـ (-خط)
+  if (content === "-خط" && member.permissions.has(ADMIN)) {
+    try {
+      await msg.channel.send({ files: ["./standard-3.gif"] });
+    } catch (err) {
+      console.error("خطأ في إرسال الصورة:", err);
+    }
+  }
 });
 
 // ✅ نظام التذاكر
