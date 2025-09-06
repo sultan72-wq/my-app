@@ -28,7 +28,7 @@ if (!TOKEN) {
 // Channels & Roles (حسب ما أعطيتني)
 const WELCOME_CHANNEL = '1273954331233747046';     // روم الترحيب
 const CONGRATS_CHANNEL = '1273958175439060992';    // روم التهنئة بالمستويات
-const TICKET_HUB_CHANNEL = '1413938199956295710';  // روم يتم إرسال رسالة فتح التذاكر فيه
+const TICKET_HUB_CHANNEL = '1406691864022745118';  // روم يتم إرسال رسالة فتح التذاكر فيه
 const ADMIN_FORM_CHANNEL = '1406692048089780234';  // روم إرسال نموذج الإدارة عند الإقلاع
 
 const SUPPORT_ROLE = '1406690376156319764';        // رتبة فريق الدعم (مشرفي التذاكر)
@@ -206,38 +206,43 @@ setInterval(checkResets, 60_000); // تحقق كل دقيقة
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
-  // إرسال نموذج تقديم الإدارة مرة عند إقلاع البوت (في روم ADMIN_FORM_CHANNEL)
+  // إرسال نموذج تقديم الإدارة مرة عند إقلاع البوت
   try {
     const ch = await client.channels.fetch(ADMIN_FORM_CHANNEL).catch(() => null);
     if (ch && ch.isTextBased()) {
       await ch.send({
-        content: "**__بسم الله تم فتح باب تقديم الاداره\n\n نموذج تقديم اداره\n-\nاسمك :\n-\nعمرك : \n-\nمن وين : \n-\nخبراتك :\n-\nكم لك ب دسكورد : \n-\nماذا نستفيد منك :\n-\nتستعمل شعارنا : \n\nكم صرت اداري ب سيرفرات : \n-\nقوانين - ممنوع السب ممنوع التخريب على\n الآخرين \n-\nلاتسرق نموذج ناس ولا تكذب !__**\n@everyone @here"
+        content: "**__بسم الله تم فتح باب تقديم الاداره\n\n نموذج تقديم اداره\n-\nاسمك :\n-\nعمرك : \n-\nمن وين : \n-\nخبراتك :\n-\nكم لك ب دسكورد : \n-\nماذا نستفيد منك : \n-\nتستعمل شعارنا : \n\nكم صرت اداري ب سيرفرات : \n-\nقوانين - ممنوع السب ممنوع التخريب على\n الآخرين \n-\nلاتسرق نموذج ناس ولا تكذب !__**\n@everyone @here"
       }).catch(() => {});
     }
   } catch (e) {
     console.warn('Could not send admin form message at ready:', e?.message || e);
   }
 
-  // إرسال رسالة قائمة التذاكر (select menu) في hub
+  // ==== هنا التعديل فقط ====
+  // إرسال رسالة قائمة التذاكر (select menu) في hub بعد تأخير 2 ثانية لضمان الجاهزية
   try {
-    const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
-    if (hub && hub.isTextBased()) {
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId('ticket_menu')
-        .setPlaceholder('اختَر نوع التذكرة من هنا')
-        .addOptions(
-          { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
-          { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
-          { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
-          { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
-        );
+    setTimeout(async () => {
+      const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
+      if (hub && hub.isTextBased()) {
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('ticket_menu')
+          .setPlaceholder('اختَر نوع التذكرة من هنا')
+          .addOptions(
+            { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
+            { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
+            { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
+            { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
+          );
 
-      const row = new ActionRowBuilder().addComponents(menu);
-      await hub.send({
-        embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
-        components: [row]
-      }).catch(() => {});
-    }
+        const row = new ActionRowBuilder().addComponents(menu);
+        await hub.send({
+          embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
+          components: [row]
+        }).catch((err) => console.error('Failed to send ticket hub message:', err));
+      } else {
+        console.warn('Ticket hub channel not found or not text-based.');
+      }
+    }, 2000); // 2 ثانية تأخير
   } catch (e) {
     console.warn('Could not post ticket hub message:', e?.message || e);
   }
