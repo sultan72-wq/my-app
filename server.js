@@ -220,33 +220,49 @@ client.once('ready', async () => {
 
   // ==== هنا التعديل فقط ====
   // إرسال رسالة قائمة التذاكر (select menu) في hub بعد تأخير 2 ثانية لضمان الجاهزية
-  try {
-    setTimeout(async () => {
-      const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
-      if (hub && hub.isTextBased()) {
-        const menu = new StringSelectMenuBuilder()
-          .setCustomId('ticket_menu')
-          .setPlaceholder('اختَر نوع التذكرة من هنا')
-          .addOptions(
-            { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
-            { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
-            { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
-            { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
-          );
+// إرسال رسالة قائمة التذاكر (select menu) في hub
+try {
+  const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
+  if (hub && hub.isTextBased()) {
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('ticket_menu')
+      .setPlaceholder('اختَر نوع التذكرة من هنا')
+      .addOptions(
+        { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
+        { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
+        { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
+        { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
+      );
 
-        const row = new ActionRowBuilder().addComponents(menu);
+    const row = new ActionRowBuilder().addComponents(menu);
+
+    // دالة retry لإرسال الرسالة حتى تنجح
+    let sent = false;
+    let attempts = 0;
+    const maxAttempts = 5; // 5 محاولات
+    const retryInterval = 5000; // كل 5 ثواني
+
+    const sendTicketMessage = async () => {
+      try {
         await hub.send({
           embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
           components: [row]
-        }).catch((err) => console.error('Failed to send ticket hub message:', err));
-      } else {
-        console.warn('Ticket hub channel not found or not text-based.');
+        });
+        sent = true;
+        console.log('✅ تم إرسال رسالة التذاكر بنجاح');
+      } catch (err) {
+        attempts++;
+        console.warn(`⚠️ محاولة إرسال رسالة التذاكر فشلت (Attempt ${attempts}):`, err?.message || err);
+        if (attempts < maxAttempts) setTimeout(sendTicketMessage, retryInterval);
       }
-    }, 20000);
-  } catch (e) {
-    console.warn('Could not post ticket hub message:', e?.message || e);
+    };
+
+    sendTicketMessage();
   }
-});
+} catch (e) {
+  console.warn('Could not post ticket hub message:', e?.message || e);
+}
+
 
 // -------------------- ترحيب مُعدل بالصورة (Canvas) --------------------
 client.on('guildMemberAdd', async (member) => {
