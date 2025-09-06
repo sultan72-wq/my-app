@@ -206,11 +206,22 @@ setInterval(checkResets, 60_000); // تحقق كل دقيقة
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
-  const sendTicketMessage = async () => {
-    try {
-      const hub = await client.channels.fetch(TICKET_HUB_CHANNEL);
-      if (!hub || !hub.isTextBased()) return console.warn('❌ القناة غير صالحة للنص');
+  // إرسال نموذج تقديم الإدارة مرة عند إقلاع البوت (في روم ADMIN_FORM_CHANNEL)
+  try {
+    const ch = await client.channels.fetch(ADMIN_FORM_CHANNEL).catch(() => null);
+    if (ch && ch.isTextBased()) {
+      await ch.send({
+        content: "**__بسم الله تم فتح باب تقديم الاداره\n\n نموذج تقديم اداره\n-\nاسمك :\n-\nعمرك : \n-\nمن وين : \n-\nخبراتك :\n-\nكم لك ب دسكورد : \n-\nماذا نستفيد منك :\n-\nتستعمل شعارنا : \n\nكم صرت اداري ب سيرفرات : \n-\nقوانين - ممنوع السب ممنوع التخريب على\n الآخرين \n-\nلاتسرق نموذج ناس ولا تكذب !__**\n@everyone @here"
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn('Could not send admin form message at ready:', e?.message || e);
+  }
 
+  // إرسال رسالة قائمة التذاكر (select menu) في hub
+  try {
+    const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
+    if (hub && hub.isTextBased()) {
       const menu = new StringSelectMenuBuilder()
         .setCustomId('ticket_menu')
         .setPlaceholder('اختَر نوع التذكرة من هنا')
@@ -218,26 +229,19 @@ client.once('ready', async () => {
           { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
           { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
           { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
-          { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
+          { label: 'شكوى على إداري ☣️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '☣️' }
         );
 
       const row = new ActionRowBuilder().addComponents(menu);
-
       await hub.send({
         embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
         components: [row]
-      });
-      console.log('✅ تم إرسال رسالة التذاكر بنجاح');
-    } catch (err) {
-      console.error('❌ فشل إرسال رسالة التذاكر:', err.message || err);
-      setTimeout(sendTicketMessage, 5000); // retry بعد 5 ثوان
+      }).catch(() => {});
     }
-  };
-
-  setTimeout(sendTicketMessage, 5000); // بداية بعد 5 ثوانٍ
+  } catch (e) {
+    console.warn('Could not post ticket hub message:', e?.message || e);
+  }
 });
-
-
 
 // -------------------- ترحيب مُعدل بالصورة (Canvas) --------------------
 client.on('guildMemberAdd', async (member) => {
