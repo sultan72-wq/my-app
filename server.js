@@ -206,39 +206,35 @@ setInterval(checkResets, 60_000); // تحقق كل دقيقة
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
-  // إرسال رسالة قائمة التذاكر (select menu) في hub مع retry آمن
-  const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
-  if (!hub || !hub.isTextBased()) return;
+  const sendTicketMessage = async () => {
+    try {
+      const hub = await client.channels.fetch(TICKET_HUB_CHANNEL);
+      if (!hub || !hub.isTextBased()) return console.warn('❌ القناة غير صالحة للنص');
 
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId('ticket_menu')
-    .setPlaceholder('اختَر نوع التذكرة من هنا')
-    .addOptions(
-      { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
-      { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
-      { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
-      { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
-    );
-  const row = new ActionRowBuilder().addComponents(menu);
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('ticket_menu')
+        .setPlaceholder('اختَر نوع التذكرة من هنا')
+        .addOptions(
+          { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
+          { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
+          { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
+          { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '⛔️' }
+        );
 
-  let attempts = 0;
-  const maxAttempts = 5;
-  const retryInterval = 5000;
+      const row = new ActionRowBuilder().addComponents(menu);
 
-  const sendTicketMessage = () => {
-    attempts++;
-    hub.send({
-      embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
-      components: [row]
-    }).then(() => {
+      await hub.send({
+        embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
+        components: [row]
+      });
       console.log('✅ تم إرسال رسالة التذاكر بنجاح');
-    }).catch(err => {
-      console.warn(`⚠️ محاولة إرسال رسالة التذاكر فشلت (Attempt ${attempts}):`, err?.message || err);
-      if (attempts < maxAttempts) setTimeout(sendTicketMessage, retryInterval);
-    });
+    } catch (err) {
+      console.error('❌ فشل إرسال رسالة التذاكر:', err.message || err);
+      setTimeout(sendTicketMessage, 5000); // retry بعد 5 ثوان
+    }
   };
 
-  sendTicketMessage();
+  setTimeout(sendTicketMessage, 5000); // بداية بعد 5 ثوانٍ
 });
 
 
