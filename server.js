@@ -242,7 +242,7 @@ client.once('ready', async () => {
       } else {
         console.warn('Ticket hub channel not found or not text-based.');
       }
-    }, 5000); // 2 ثانية تأخير
+    }, 20000);
   } catch (e) {
     console.warn('Could not post ticket hub message:', e?.message || e);
   }
