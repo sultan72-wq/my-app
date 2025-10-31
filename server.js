@@ -1,682 +1,531 @@
-// server.js (الكود الكامل، لا تقطع أي جزء)
+// server.js
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionsBitField } = require('discord.js');
 const express = require('express');
-const { createCanvas, loadImage } = require('canvas');
-const {
-  Client,
-  GatewayIntentBits,
-  Partials,
-  EmbedBuilder,
-  AttachmentBuilder,
-  PermissionsBitField,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  StringSelectMenuBuilder,
-  ChannelType
-} = require('discord.js');
 
-// -------------------- إعداد المتغيرات والـ IDs --------------------
-const TOKEN = process.env.TOKEN || process.env.DISCORD_TOKEN;
+const TOKEN = process.env.DISCORD_TOKEN;
 if (!TOKEN) {
-  console.error('❌ لم يتم العثور على TOKEN في المتغيرات البيئية. ضع TOKEN في .env أو في متغيرات البيئة الخاصة بالخدمة.');
+  console.error('Missing DISCORD_TOKEN in env.');
   process.exit(1);
 }
 
-// Channels & Roles (حسب ما أعطيتني)
-const WELCOME_CHANNEL = '1273954331233747046';     // روم الترحيب
-const CONGRATS_CHANNEL = '1273958175439060992';    // روم التهنئة بالمستويات
-const TICKET_HUB_CHANNEL = '1413938199956295710';  // روم يتم إرسال رسالة فتح التذاكر فيه
-const ADMIN_FORM_CHANNEL = '1406692048089780234';  // روم إرسال نموذج الإدارة عند الإقلاع
-
-const SUPPORT_ROLE = '1406690376156319764';        // رتبة فريق الدعم (مشرفي التذاكر)
-const ADMINISTRATOR_ROLE = '1268350577499443283';  // (مثلاً) رتبة أدمن ستريتور لو تُستخدم
-
-// رتب الترقيات حسب المستويات (حسب القيم التي أعطيتني)
-const LEVEL_ROLES = {
-  6:  '1406688194187231373',
-  11: '1406688443081162845',
-  17: '1406688498366287922',
-  24: '1406688532860375060',
-  32: '1406688939359862937',
-  39: '1406689175280812082',
-  49: '1406689207757438996'
-};
-
-// مكان صورة الترحيب داخل المشروع
-const WELCOME_IMAGE_PATH = path.join(__dirname, 'images', 'welcome.png');
-
-// -------------------- ملفات البيانات (سيتم إنشاؤها تلقائياً إن لم تكن موجودة) --------------------
-const DB = {
-  XP_TEXT: path.join(__dirname, 'xp_text.json'),
-  XP_VOICE: path.join(__dirname, 'xp_voice.json'),
-  XP_TEXT_DAY: path.join(__dirname, 'xp_text_day.json'),
-  XP_TEXT_WEEK: path.join(__dirname, 'xp_text_week.json'),
-  XP_TEXT_MONTH: path.join(__dirname, 'xp_text_month.json'),
-  XP_VOICE_DAY: path.join(__dirname, 'xp_voice_day.json'),
-  XP_VOICE_WEEK: path.join(__dirname, 'xp_voice_week.json'),
-  XP_VOICE_MONTH: path.join(__dirname, 'xp_voice_month.json')
-};
-
-function readJSON(p, fallback = {}) {
-  try {
-    if (!fs.existsSync(p)) return fallback;
-    const txt = fs.readFileSync(p, 'utf8');
-    return JSON.parse(txt || '{}');
-  } catch (e) {
-    console.error('JSON read error', p, e);
-    return fallback;
-  }
-}
-function writeJSON(p, data) {
-  try { fs.writeFileSync(p, JSON.stringify(data, null, 2)); }
-  catch (e) { console.error('JSON write error', p, e); }
-}
-
-// تحميل الداتا
-let xpText = readJSON(DB.XP_TEXT, {});   // شكل: { userId: { xp, level, lastMsg } }
-let xpVoice = readJSON(DB.XP_VOICE, {}); // شكل: { userId: xp }
-let xpTextDay = readJSON(DB.XP_TEXT_DAY, {});
-let xpTextWeek = readJSON(DB.XP_TEXT_WEEK, {});
-let xpTextMonth = readJSON(DB.XP_TEXT_MONTH, {});
-let xpVoiceDay = readJSON(DB.XP_VOICE_DAY, {});
-let xpVoiceWeek = readJSON(DB.XP_VOICE_WEEK, {});
-let xpVoiceMonth = readJSON(DB.XP_VOICE_MONTH, {});
-
-// -------------------- ضبط الحفظ الدوري --------------------
-function saveAll() {
-  writeJSON(DB.XP_TEXT, xpText);
-  writeJSON(DB.XP_VOICE, xpVoice);
-  writeJSON(DB.XP_TEXT_DAY, xpTextDay);
-  writeJSON(DB.XP_TEXT_WEEK, xpTextWeek);
-  writeJSON(DB.XP_TEXT_MONTH, xpTextMonth);
-  writeJSON(DB.XP_VOICE_DAY, xpVoiceDay);
-  writeJSON(DB.XP_VOICE_WEEK, xpVoiceWeek);
-  writeJSON(DB.XP_VOICE_MONTH, xpVoiceMonth);
-}
-setInterval(saveAll, 30_000); // كل 30 ثانية حفظ دوري
-
-// -------------------- دوال مساعدة للنظام --------------------
-function ensureTextUser(id) {
-  if (!xpText[id]) xpText[id] = { xp: 0, level: 1, lastMsg: 0 };
-}
-function addTextXP(id, amount) {
-  ensureTextUser(id);
-  xpText[id].xp += amount;
-  xpText[id].lastMsg = Date.now();
-  xpTextDay[id] = (xpTextDay[id] || 0) + amount;
-  xpTextWeek[id] = (xpTextWeek[id] || 0) + amount;
-  xpTextMonth[id] = (xpTextMonth[id] || 0) + amount;
-}
-function addVoiceXP(id, amount) {
-  xpVoice[id] = (xpVoice[id] || 0) + amount;
-  xpVoiceDay[id] = (xpVoiceDay[id] || 0) + amount;
-  xpVoiceWeek[id] = (xpVoiceWeek[id] || 0) + amount;
-  xpVoiceMonth[id] = (xpVoiceMonth[id] || 0) + amount;
-}
-function requiredXP(level) {
-  return 20 * Math.pow(2, Math.max(0, level - 1));
-}
-function sortMap(map) {
-  // map can be either {id: number} or {id: {xp:..., ...}}
-  return Object.entries(map)
-    .map(([id, v]) => [id, typeof v === 'object' ? (v.xp || 0) : v])
-    .sort((a, b) => b[1] - a[1]);
-}
-function findRank(sortedList, id) {
-  return sortedList.findIndex(([uid]) => uid === id) + 1; // 1-based or 0 -> returns >0 or 0 -> not found
-}
-
-// -------------------- إعداد الـ Voice tracking --------------------
-const voiceJoin = {}; // { userId: timestampMs }
-
-// -------------------- إعداد البوت --------------------
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates
   ],
   partials: [Partials.Channel]
 });
 
-// -------------------- Express webserver (لـ UptimeRobot) --------------------
+// ----- إعدادات ثابتة من عندك (IDs) -----
+const SUPPORT_ROLE = '1406690376156319764';
+const ADMINISTRATOR_ROLE = '1268350577499443283';
+
+const TICKET_HUB_CHANNEL_DEFAULT = '1406691864022745118'; // افتراضي إن احتجت
+const APPLY_ANSWERS_DEFAULT = '1406692048089780234'; // روم الإجابات الافتراضي إن احتجت
+
+// ProBot info (مراقبة الرسائل)
+const PROBOT_ID = '282859044593598464';
+const PAYMENT_TARGET_ID = '801738764077891594'; // المكان اللي يرسل لهم المبالغ
+
+// Role purchase options (ترتيب الخيارات مع المبالغ المطلوبة)
+const PURCHASE_ROLES = [
+  { label: '! 𝗠𝟳 • 〢 𝗮𝗹𝗱𝗶𝘀𝘁𝗶𝗻𝗰𝘁𝗶𝘃𝗲  ❬✦❭', roleId: '1334249939680891013', amount: 3158 },
+  { label: '! 𝗠𝟳 • 〢 𝗢𝘃𝗲𝗿 𝗛𝗮𝘃𝗲𝗻 ❬✦❭', roleId: '1332483925712568390', amount: 7369 },
+  { label: '! 𝗠𝟳 • 〢 𝗠𝗮𝗷𝗲𝘀𝘁𝗶𝗰 ❬✦❭', roleId: '1332484125470490696', amount: 10527 },
+  { label: '! 𝗠𝟳 • 〢 𝗞𝗶𝗻𝗴  ❬✦❭ / ! 𝗠𝟳 • 〢 𝗣𝗿𝗶𝗻𝗰𝗲𝘀𝘀  ❬✦❭', roleId: '1328701861896650882/1332743680934543393', amount: 13685, special: true },
+  { label: '! 𝗠𝟳 • 〢 𝗖𝗿𝗮𝘇𝘆  ❬✦❭', roleId: '1323441766732402719', amount: 17895 },
+  { label: '! 𝗠𝟳 • 〢 𝗧𝗵𝗲 𝗟𝗲𝗴𝗲𝗻𝗱 ❬✦❭', roleId: '1338166493992718347', amount: 24211 }
+];
+
+// ممنوع يفتح خيار الشراء لو عنده هالرتبة:
+const CANNOT_BUY_ROLE = '1272270004968099907';
+
+// موثقة بنات رتبتها
+const VERIFY_GIRLS_ROLE = '1407757087240359976';
+
+// ----------------- Express webserver (لـ UptimeRobot) -----------------
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Otaru Bot is alive 🚀'));
-app.listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
+app.get('/', (req, res) => res.send('Otaru Bot alive'));
+app.listen(PORT, () => console.log(`Web server on port ${PORT}`));
 
-// -------------------- Reset يومي / أسبوعي / شهري عند 4:00 بتوقيت عمان (UTC+4) --------------------
-let lastDailyReset = 0;
-let lastWeeklyReset = 0;
-let lastMonthlyReset = 0;
-
-function checkResets() {
-  const now = new Date();
-  // حساب إذا عدينا 4:00 بتوقيت عمان => UTC time = 4 - 4 = 0 => أي يوم الساعة 0UTC
-  // لكن هنا نستخدم التوقيت المحلي للـ server لذلك ننفذ فحص مرن:
-  const nowUTC = new Date(now.getTime() + now.getTimezoneOffset() * 60000); // الوقت UTC
-  const todayUTC_0 = new Date(Date.UTC(nowUTC.getUTCFullYear(), nowUTC.getUTCMonth(), nowUTC.getUTCDate(), 0, 0, 0, 0)).getTime();
-
-  // سنستخدم نهج أبسط: تحويل 4:00 عمان إلى UTC = 0:00 ؛
-  // نتحقق على أساس تاريخ/ساعة UTC الآن.
-  const currentUTCDate = nowUTC.getUTCDate();
-  const currentUTCHour = nowUTC.getUTCHours();
-
-  // يومي: تنفيذ مرة عندما تتحول الساعة UTC إلى 0:00 (أي 4:00 بتوقيت عمان)
-  if (currentUTCHour === 0) {
-    if (lastDailyReset < todayUTC_0) {
-      xpTextDay = {};
-      xpVoiceDay = {};
-      lastDailyReset = Date.now();
-      console.log('✅ Daily XP reset (UTC 00:00 => Oman 04:00)');
-    }
-  }
-
-  // أسبوعي: إذا اليوم الأحد UTC (0) عند 0:00 UTC = Sunday 4am Oman
-  if (nowUTC.getUTCDay() === 0 && currentUTCHour === 0) {
-    if (lastWeeklyReset < todayUTC_0) {
-      xpTextWeek = {};
-      xpVoiceWeek = {};
-      lastWeeklyReset = Date.now();
-      console.log('✅ Weekly XP reset (Sunday 04:00 Oman)');
-    }
-  }
-
-  // شهري: إذا يوم الشهر = 1 و الساعة UTC =0
-  if (nowUTC.getUTCDate() === 1 && currentUTCHour === 0) {
-    if (lastMonthlyReset < todayUTC_0) {
-      xpTextMonth = {};
-      xpVoiceMonth = {};
-      lastMonthlyReset = Date.now();
-      console.log('✅ Monthly XP reset (1st day 04:00 Oman)');
-    }
-  }
-
-  // حفظ بعد أي تغيير
-  saveAll();
+// ----------------- Helpers -----------------
+function isTextChannel(ch) {
+  return ch && (ch.type === ChannelType.GuildText || ch.type === ChannelType.PublicThread || ch.type === ChannelType.PrivateThread);
 }
-setInterval(checkResets, 60_000); // تحقق كل دقيقة
 
-// -------------------- عند الجاهزية (ready) --------------------
+// Helper to create ticket channel with given overwrites
+async function createTicketChannel(guild, name, overwrites, parentId) {
+  return await guild.channels.create({
+    name: name.slice(0, 90),
+    type: ChannelType.GuildText,
+    parent: parentId || undefined,
+    permissionOverwrites: overwrites,
+    topic: `ticket_owner:${overwrites.find(o => o.allow && o.allow.includes(PermissionsBitField.Flags.SendMessages))?.id || 'unknown'}`
+  });
+}
+
+// ----------------- Slash commands registration (on ready) -----------------
 client.once('ready', async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag}`);
 
-  // إرسال نموذج تقديم الإدارة مرة عند إقلاع البوت (في روم ADMIN_FORM_CHANNEL)
-  try {
-    const ch = await client.channels.fetch(ADMIN_FORM_CHANNEL).catch(() => null);
-    if (ch && ch.isTextBased()) {
-      await ch.send({
-        content: "**__بسم الله تم فتح باب تقديم الاداره\n\n نموذج تقديم اداره\n-\nاسمك :\n-\nعمرك : \n-\nمن وين : \n-\nخبراتك :\n-\nكم لك ب دسكورد : \n-\nماذا نستفيد منك :\n-\nتستعمل شعارنا : \n\nكم صرت اداري ب سيرفرات : \n-\nقوانين - ممنوع السب ممنوع التخريب على\n الآخرين \n-\nلاتسرق نموذج ناس ولا تكذب !__**\n@everyone @here"
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.warn('Could not send admin form message at ready:', e?.message || e);
-  }
-
-  // إرسال رسالة قائمة التذاكر (select menu) في hub
-  try {
-    const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
-    if (hub && hub.isTextBased()) {
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId('ticket_menu')
-        .setPlaceholder('اختَر نوع التذكرة من هنا')
-        .addOptions(
-          { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة/استفسار عام - فريق الدعم', emoji: '⚖️' },
-          { label: 'تقديم إدارة 👨‍💻', value: 'admin_apply', description: 'تقديم انضمام لفريق الإدارة', emoji: '👨‍💻' },
-          { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'إبلاغ عن عضو', emoji: '⚠️' },
-          { label: 'شكوى على إداري ☣️', value: 'complaint_staff', description: 'إبلاغ عن إداري', emoji: '☣️' }
-        );
-
-      const row = new ActionRowBuilder().addComponents(menu);
-      await hub.send({
-        embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('**لإنشاء تذكرة اختر نوع التذكرة من القائمة أدناه**').setColor(0xE53935)],
-        components: [row]
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.warn('Could not post ticket hub message:', e?.message || e);
-  }
-});
-
-// -------------------- ترحيب مُعدل بالصورة (Canvas) --------------------
-client.on('guildMemberAdd', async (member) => {
-  try {
-    const ch = await member.guild.channels.fetch(WELCOME_CHANNEL).catch(() => null);
-    if (!ch || !ch.isTextBased()) return;
-
-    // تحميل الخلفية (التي وضعتها في ./images/welcome.png)
-    if (!fs.existsSync(WELCOME_IMAGE_PATH)) {
-      // لو ما فيه صورة، نرسل رسالة نصية فقط
-      return ch.send({ content: `**نورتـ/ـي سيرفرنا ${member}\n\nانتـ/ـي الآن في Otaru Community**` }).catch(() => {});
-    }
-
-    const bg = await loadImage(WELCOME_IMAGE_PATH);
-    const canvas = createCanvas(bg.width, bg.height);
-    const ctx = canvas.getContext('2d');
-
-    // رسم الخلفية
-    ctx.drawImage(bg, 0, 0, bg.width, bg.height);
-
-    // تحميل صورة الافاتار
-    const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256 });
-    const res = await fetch(avatarURL);
-    const buf = Buffer.from(await res.arrayBuffer());
-    const avatar = await loadImage(buf);
-
-    // حساب أبعاد الافاتار الموضوعة بالوسط
-    const avSize = Math.floor(Math.min(bg.width, bg.height) * 0.28);
-    const avX = Math.floor(bg.width / 2 - avSize / 2);
-    const avY = Math.floor(bg.height * 0.25);
-
-    // رسم دائرة وقطع الصورة لافاتار دائري
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(avX + avSize / 2, avY + avSize / 2, avSize / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, avX, avY, avSize, avSize);
-    ctx.restore();
-
-    // اسم المستخدم تحته
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
-    const nameFontSize = Math.floor(avSize * 0.20);
-    ctx.font = `${nameFontSize}px sans-serif`;
-    ctx.fillText(member.user.username, bg.width / 2, avY + avSize + Math.floor(avSize * 0.33));
-
-    // نص الترحيب ضمن المحتوى
-    const contentText = `**نورتـ/ـي سيرفرنا ${member}\n\nانتـ/ـي الآن في Otaru Community\n\nلتتعرفـ/ـي على سيرفرنا اكثر توجهـ/ـي الى :\n<#1373309259709681694>\n\nلا تنسى قراءة <#1250410826981179514>\n\nنتمنى لكـ/ـي تجربة رائعة في سيرفرنا المتواضع 🔥**`;
-
-    const attachment = new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'welcome.png' });
-    await ch.send({ content: contentText, files: [attachment] }).catch(() => {});
-  } catch (e) {
-    console.error('Welcome canvas error:', e);
-  }
-});
-
-// -------------------- الردود التلقائية --------------------
-client.on('messageCreate', async (msg) => {
-  if (!msg.guild || msg.author.bot) return;
-  const content = msg.content.trim().toLowerCase();
-
-  const isSupport = msg.member.roles.cache.has(SUPPORT_ROLE);
-  const isAdmin = msg.member.permissions.has(PermissionsBitField.Flags.Administrator);
-
-  const replies = {
-    "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "السلام عليكم ورحمة الله": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "السلام عليكم ورحمة الله وبركاته": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "سلام عليكم": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "سلام عليكم ورحمة الله": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "سلام عليكم ورحمة الله وبركاته": "وعليكم السلام ورحمة الله وبركاته منور/ه ❤️",
-    "باك": "ولكم منور/ه ❤️",
-    "شعار": isSupport ? "! 𝙈𝟳 I" : null,
-    // "!" تم طلب حذفه سابقاً
-    "-": isSupport ? `كان معك الاداري ${msg.author} لا تنسى تقييمك في https://discord.com/channels/1225825173358379131/1367573165898862602` : null,
-    "تحويل": isAdmin ? "التحويل الى Md7 فقط" : null
-  };
-
-  if (replies[content]) {
-    try { await msg.reply(replies[content]); } catch {}
-  }
-
-  // ====== نظام XP الكتابي (رسائل) ======
-  try {
-    const uid = msg.author.id;
-    ensureTextUser(uid);
-    const now = Date.now();
-    if (now - (xpText[uid].lastMsg || 0) > 10000) {
-      // يحصل 5 XP لكل رسالة كل 10 ثواني
-      addTextXP(uid, 5);
-
-      // تحقق ترقية
-      const currentLevel = xpText[uid].level;
-      const need = requiredXP(currentLevel);
-      if (xpText[uid].xp >= need) {
-        const oldLevel = currentLevel;
-        xpText[uid].level = currentLevel + 1;
-        // تهنئة روم
-        try { await (msg.guild.channels.cache.get(CONGRATS_CHANNEL) || (await msg.guild.channels.fetch(CONGRATS_CHANNEL))).send(`ألف مبروك 🥳 <@${uid}>\nلقد انتقلت من المستوى ${oldLevel} إلى ${currentLevel + 1}\nواصل التقدم 🔥`); } catch {}
-        // إعطاء رتبة إن وُجدت
-        if (LEVEL_ROLES[currentLevel + 1]) {
-          try { (await msg.guild.members.fetch(uid)).roles.add(LEVEL_ROLES[currentLevel + 1]).catch(() => {}); } catch {}
+  // Register two global slash commands: setup-ticket & setup-apply
+  const data = [
+    {
+      name: 'setup-ticket',
+      description: 'عرض بانل التذاكر في روم تحدده',
+      options: [
+        {
+          name: 'channel',
+          description: 'الروم الذي تريد نشر بانل التذاكر فيه',
+          type: 7, // CHANNEL
+          required: true
         }
-      }
+      ]
+    },
+    {
+      name: 'setup-apply',
+      description: 'نشر رسالة التقديم: حدد روم البانل وروم استقبال الاجابات',
+      options: [
+        { name: 'panel_channel', description: 'اختر الروم حيث سيظهر زر التقديم', type: 7, required: true },
+        { name: 'answers_channel', description: 'اختر الروم الذي تستقبل الاجابات منه', type: 7, required: true }
+      ]
     }
-  } catch (e) { console.warn('XP text error', e); }
+  ];
 
-  // الأوامر (top / top text / top voice / rank / رانك)
-  // نقوم بفحص الأوامر في هنا لتسهيل التنفيذ بدون نظام أوامر معقد
-  if (!content.startsWith('top') && !content.startsWith('t') && content !== 'rank' && content !== 'رانك') return;
-
-  // ------------------------------------------
-  // وظيفة بناء إمبيد الـ top و عرض النتائج
-  // ------------------------------------------
   try {
-    const args = content.split(/\s+/).filter(Boolean); // e.g. ["top", "text", "day"]
-    const baseCmd = args[0]; // top or t
-    // determine mode: both/text/voice
-    let mode = 'both';
-    if (args[1]) {
-      if (args[1] === 'text') mode = 'text';
-      else if (args[1] === 'voice') mode = 'voice';
-    }
-    // period
-    let period = 'all';
-    if (args.includes('day')) period = 'day';
-    else if (args.includes('week')) period = 'week';
-    else if (args.includes('month')) period = 'month';
-
-    // pick datasets
-    function pickText(scope) {
-      if (scope === 'all') {
-        // flatten xpText map to {id: xp}
-        const flat = {};
-        for (const [id, v] of Object.entries(xpText)) flat[id] = v.xp || 0;
-        return flat;
-      } else if (scope === 'day') return xpTextDay;
-      else if (scope === 'week') return xpTextWeek;
-      else if (scope === 'month') return xpTextMonth;
-      return {};
-    }
-    function pickVoice(scope) {
-      if (scope === 'all') return xpVoice;
-      else if (scope === 'day') return xpVoiceDay;
-      else if (scope === 'week') return xpVoiceWeek;
-      else if (scope === 'month') return xpVoiceMonth;
-      return {};
-    }
-
-    const textMap = pickText(period);
-    const voiceMap = pickVoice(period);
-
-    const sortedText = sortMap(textMap); // [ [id, xp], ... ]
-    const sortedVoice = sortMap(voiceMap);
-
-    const uid = msg.author.id;
-
-    if (mode === 'both') {
-      // top -> عرض 5 كتابي و 5 صوتي في ذات الإمبيد
-      const topText = sortedText.slice(0, 5);
-      const topVoice = sortedVoice.slice(0, 5);
-
-      // لاحظ: لو المستخدم خارج الخمسة نضيف مركزه تحت المركز الخامس
-      let textField = '';
-      for (let i = 0; i < 5; i++) {
-        if (topText[i]) textField += `**${i + 1}. <@${topText[i][0]}> - ${topText[i][1]} XP**\n`;
-        else textField += '\n';
-      }
-      const userTextRank = findRank(sortedText, uid);
-      if (userTextRank > 5) {
-        const userXPval = (sortedText.find(([u]) => u === uid) || [null, 0])[1];
-        textField += `**${userTextRank}. <@${uid}> - ${userXPval} XP**\n`;
-      }
-
-      let voiceField = '';
-      for (let i = 0; i < 5; i++) {
-        if (topVoice[i]) voiceField += `**${i + 1}. <@${topVoice[i][0]}> - ${topVoice[i][1]} XP**\n`;
-        else voiceField += '\n';
-      }
-      const userVoiceRank = findRank(sortedVoice, uid);
-      if (userVoiceRank > 5) {
-        const userVoiceXPval = (sortedVoice.find(([u]) => u === uid) || [null, 0])[1];
-        voiceField += `**${userVoiceRank}. <@${uid}> - ${userVoiceXPval} XP**\n`;
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle(`📊 المتصدرين (${period === 'all' ? 'الكل' : period})`)
-        .addFields(
-          { name: 'كتابي 📝', value: textField || 'لا يوجد', inline: true },
-          { name: 'صوتي 🎤', value: voiceField || 'لا يوجد', inline: true }
-        )
-        .setColor(0xC62828);
-
-      return void msg.channel.send({ embeds: [embed] });
-    }
-
-    if (mode === 'text' || mode === 'voice') {
-      const map = mode === 'text' ? textMap : voiceMap;
-      const sorted = (mode === 'text' ? sortedText : sortedVoice).slice(0, 10);
-      let out = '';
-      for (let i = 0; i < sorted.length; i++) {
-        out += `**${i + 1}. <@${sorted[i][0]}> - ${sorted[i][1]} XP**\n`;
-      }
-      if (!out) out = 'لا يوجد';
-      const embed = new EmbedBuilder()
-        .setTitle(`📊 ${mode === 'text' ? 'كتابي 📝' : 'صوتي 🎤'} (${period === 'all' ? 'الكل' : period})`)
-        .setDescription(out)
-        .setColor(0xAD1457);
-      return void msg.channel.send({ embeds: [embed] });
-    }
-
-    // أمر رانك
-    if (content === 'rank' || content === 'رانك') {
-      const tx = (xpText[uid] && xpText[uid].xp) || 0;
-      const lv = (xpText[uid] && xpText[uid].level) || 1;
-      const vx = xpVoice[uid] || 0;
-      const embed = new EmbedBuilder()
-        .setTitle(`🎖️ معلومات ${msg.author.username}`)
-        .setColor(0x1E88E5)
-        .addFields(
-          { name: 'XP الكتابي', value: `${tx} XP`, inline: true },
-          { name: 'المستوى الكتابي', value: `${lv}`, inline: true },
-          { name: 'XP الصوتي', value: `${vx} XP`, inline: true }
-        );
-      return void msg.channel.send({ embeds: [embed] });
-    }
+    await client.application.commands.set(data);
+    console.log('Slash commands registered.');
   } catch (e) {
-    console.error('Top/Rank handler error:', e);
+    console.warn('Could not register slash commands:', e);
   }
 });
 
-// -------------------- نظام الصوت (احتساب) --------------------
-client.on('voiceStateUpdate', (oldState, newState) => {
-  // دخول قناة صوتية
-  try {
-    // newState.channelId non-null means joined some channel
-    if (!oldState.channelId && newState.channelId) {
-      voiceJoin[newState.id] = Date.now();
-    }
-    // خروج من قناة صوتية
-    if (oldState.channelId && !newState.channelId) {
-      const start = voiceJoin[newState.id];
-      if (!start) return;
-      const mins = Math.floor((Date.now() - start) / 60000);
-      // نظامك: كل نصف ساعة = 20 XP (مطابق لطلبك السابق)
-      const chunks = Math.floor(mins / 30);
-      const earned = chunks * 20;
-      if (earned > 0) {
-        addVoiceXP(newState.id, earned);
-        // أيضاً ننظر هل نريد إضافة لتكوين الترقيات الصوتية — هنا نتركها فقط كـ xpVoice
-      }
-      delete voiceJoin[newState.id];
-    }
-  } catch (e) {
-    console.warn('Voice XP error', e);
-  }
-});
-
-// -------------------- نظام التذاكر (قائمة + أزرار) --------------------
+// ----------------- Interaction handler -----------------
 client.on('interactionCreate', async (interaction) => {
   try {
-    // =================================================
-    // اختيار من القائمة لفتح التذكرة
-    // =================================================
-    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
-      await interaction.deferReply({ ephemeral: true });
-      const choice = interaction.values[0]; // support | admin_apply | complaint_member | complaint_staff
-      const hub = await client.channels.fetch(TICKET_HUB_CHANNEL).catch(() => null);
-      const parentId = hub?.parentId || interaction.channel?.parentId || null;
+    // ===== Slash commands =====
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === 'setup-ticket') {
+        const channel = interaction.options.getChannel('channel');
+        if (!channel || !channel.isTextBased()) return interaction.reply({ content: 'اختر روم نصي صالح.', ephemeral: true });
 
-      // نوع التذكرة و الضوابط
-      const isAdminOnly = (choice === 'admin_apply' || choice === 'complaint_staff');
-      const isSupportOnly = (choice === 'support' || choice === 'complaint_member');
+        // build select menu
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('ticket_menu')
+          .setPlaceholder('اختَر نوع التذكرة من هنا')
+          .addOptions(
+            { label: 'الدعم الفني ⚖️', value: 'support', description: 'مشكلة أو استفسار عام' },
+            { label: 'شراء رتبة 💵', value: 'buy_role', description: 'شراء رتبة بشكل آمن' },
+            { label: 'شكوى على عضو ⚠️', value: 'complaint_member', description: 'الإبلاغ عن عضو' },
+            { label: 'شكوى على إداري ⛔️', value: 'complaint_staff', description: 'إبلاغ عن إداري (للأدمن فقط)' },
+            { label: 'توثيق بنات 🎀', value: 'verify_girls', description: 'توثيق بنات (خاص)' }
+          );
 
-      // إعداد صلاحيات القناة المنشأة
-      const overwrites = [
-        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] }, // @everyone ممنوع
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-      ];
+        const row = new ActionRowBuilder().addComponents(menu);
+        await channel.send({
+          embeds: [new EmbedBuilder().setTitle('نظام التذاكر').setDescription('اضغط القائمة لاختيار نوع التذكرة').setColor(0xE53935)],
+          components: [row]
+        });
 
-      if (!isAdminOnly) {
-        overwrites.push({ id: SUPPORT_ROLE, allow: [PermissionsBitField.Flags.ViewChannel] });
-      } else {
-        // إن كانت مخصصة للأدمن، لا نعرض لفريق الدعم، فقط للأدمن/أصحاب الصلاحية
-        // سنعتمد على من يضغط استلام لاحقاً (فقط الأدمن يستطيع استلام)
+        return interaction.reply({ content: 'تم نشر بانل التذاكر.', ephemeral: true });
       }
 
-      // اسم القناة
-      const nameMap = {
-        support: `support-${interaction.user.username}`,
-        admin_apply: `apply-${interaction.user.username}`,
-        complaint_member: `complaint-member-${interaction.user.username}`,
-        complaint_staff: `complaint-staff-${interaction.user.username}`
-      };
-      const channelName = (nameMap[choice] || `ticket-${interaction.user.username}`).slice(0, 90);
+      if (interaction.commandName === 'setup-apply') {
+        const panel = interaction.options.getChannel('panel_channel');
+        const answers = interaction.options.getChannel('answers_channel');
+        if (!panel?.isTextBased() || !answers?.isTextBased()) return interaction.reply({ content: 'يرجى اختيار روم نصي صالح للبانل و لروم الاستقبال.', ephemeral: true });
 
-      const ticket = await interaction.guild.channels.create({
-        name: channelName,
+        // Save mapping by message id is optional; here we just send the panel with a button that will open modal
+        const btn = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`apply_open|${answers.id}`).setLabel('تقديم').setStyle(ButtonStyle.Primary)
+        );
+
+        const embed = new EmbedBuilder()
+          .setTitle('تقديم الأدارة')
+          .setDescription('للتقديم لطاقم الأداره أنقر الزر بالأسفل')
+          .setColor(0xC62828);
+
+        await panel.send({ embeds: [embed], components: [btn] });
+        return interaction.reply({ content: 'تم نشر بانل التقديم.', ephemeral: true });
+      }
+    }
+
+    // ===== Select menu for tickets =====
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
+      await interaction.deferReply({ ephemeral: true });
+      const choice = interaction.values[0]; // support | buy_role | complaint_member | complaint_staff | verify_girls
+      const guild = interaction.guild;
+      const parentId = interaction.channel.parentId || null;
+
+      // if buy_role: check if user has forbidden role
+      if (choice === 'buy_role') {
+        const member = interaction.member;
+        if (member.roles.cache.has(CANNOT_BUY_ROLE)) return interaction.editReply({ content: '❌ غير مسموح لك فتح تذاكر الشراء.', ephemeral: true });
+
+        // create private ticket: visible ONLY to member + bot
+        const overwrites = [
+          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+          { id: member.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+        ];
+        const ticket = await guild.channels.create({
+          name: `buy-${member.user.username}`,
+          type: ChannelType.GuildText,
+          parent: parentId ?? undefined,
+          permissionOverwrites: overwrites,
+          topic: `ticket_type:buy;owner:${member.id}`
+        });
+
+        // send initial message with role selection menu (or buttons)
+        // Use select menu for role choices
+        const options = PURCHASE_ROLES.map((r, idx) => ({
+          label: r.label.slice(0, 100),
+          value: String(idx)
+        }));
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId(`buy_select|${member.id}`)
+          .setPlaceholder('اختر الرتبة التي تريد شراؤها')
+          .addOptions(options);
+
+        await ticket.send({
+          content: `أهلا بك <@${member.id}>\nاختر الرتبة التي تريد شراؤها من الأسفل`,
+          components: [new ActionRowBuilder().addComponents(menu)]
+        });
+
+        await interaction.editReply({ content: `✅ تم إنشاء تذكرتك: <#${ticket.id}>`, ephemeral: true });
+        return;
+      }
+
+      // support, complaint_member, complaint_staff, verify_girls
+      // Permission rules:
+      // - complaint_staff and admin-only -> only admins can claim
+      // - verify_girls -> only role VERIFY_GIRLS_ROLE can claim
+      // - support & complaint_member -> support role can see and claim
+      const member = interaction.member;
+      const overwrites = [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: member.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+      ];
+
+      if (choice === 'support' || choice === 'complaint_member') {
+        overwrites.push({ id: SUPPORT_ROLE, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] });
+      }
+      // for complaint_staff: no support see, only admins later can claim
+      // for verify_girls:
+      if (choice === 'verify_girls') {
+        overwrites.push({ id: VERIFY_GIRLS_ROLE, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] });
+      }
+
+      const nameMap = {
+        support: `support-${member.user.username}`,
+        complaint_member: `complaint-member-${member.user.username}`,
+        complaint_staff: `complaint-staff-${member.user.username}`,
+        verify_girls: `verify-${member.user.username}`
+      };
+      const ticket = await guild.channels.create({
+        name: (nameMap[choice] || `ticket-${member.user.username}`).slice(0, 90),
         type: ChannelType.GuildText,
         parent: parentId ?? undefined,
         permissionOverwrites: overwrites,
-        topic: `type:${choice};owner:${interaction.user.id}`
+        topic: `ticket_type:${choice};owner:${member.id}`
       });
 
-      // إذا الخيار admin_apply نرسل نموذج الإدارة داخل روم خاص (ADMIN_FORM_CHANNEL) أيضاً يُنشر فور الإنشاء
-      const hereMention = (choice === 'admin_apply' || choice === 'complaint_staff') ? '@here ' : '';
-      const supportPing = (choice === 'support' || choice === 'complaint_member') ? `<@&${SUPPORT_ROLE}>` : hereMention;
-
-      // رسالة داخل التذكرة
+      // message inside ticket with claim/close buttons (except buy_role which had no claim/close as per request)
       const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('claim_ticket').setLabel('إستلام').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('close_ticket').setLabel('إغلاق تذكرة').setStyle(ButtonStyle.Danger)
       );
 
       await ticket.send({
-        content: `${hereMention}أهلاً بك <@${interaction.user.id}>\nسوف يتم التعامل معك قريباً\n${supportPing}`,
+        content: `أهلا بك <@${member.id}>\nسوف يتم التعامل معك قريباً\n${choice === 'support' || choice === 'complaint_member' ? `<@&${SUPPORT_ROLE}>` : ''}`,
         components: [buttons]
       });
-
-      // لو الخيار admin_apply نرسل النموذج داخل روم ADMIN_FORM_CHANNEL كما طلبت (أيضاً نمنشن everyone/here داخل ذلك الروم فقط مرة عند الإنشاء)
-      if (choice === 'admin_apply') {
-        try {
-          const adminFormRoom = await client.channels.fetch(ADMIN_FORM_CHANNEL).catch(() => null);
-          if (adminFormRoom && adminFormRoom.isTextBased()) {
-            await adminFormRoom.send({
-              content: `**__بسم الله تم فتح باب تقديم الاداره\n\n نموذج تقديم اداره\n-\nاسمك :\n-\nعمرك : \n-\nمن وين : \n-\nخبراتك :\n-\nكم لك ب دسكورد : \n-\nماذا نستفيد منك : \n-\nتستعمل شعارنا : \n\nكم صرت اداري ب سيرفرات : \n-\nقوانين - ممنوع السب ممنوع التخريب على\n الآخرين \n-\nلاتسرق نموذج ناس ولا تكذب !__**\n@here`
-            }).catch(() => {});
-          }
-        } catch (e) { console.warn('Could not post admin apply form', e); }
-      }
 
       await interaction.editReply({ content: `✅ تم إنشاء التذكرة: <#${ticket.id}>`, ephemeral: true });
       return;
     }
 
-    // =================================================
-    // أزرار التذكرة: إستلام / إغلاق / إعادة فتح / حذف
-    // =================================================
+    // ===== Button: apply open (open modal) =====
+    if (interaction.isButton() && interaction.customId && interaction.customId.startsWith('apply_open|')) {
+      const args = interaction.customId.split('|');
+      const answersChannelId = args[1];
+      // Build modal with the questions you provided earlier
+      const modal = new ModalBuilder().setCustomId(`apply_modal|${answersChannelId}`).setTitle('نموذج تقديم إدارة');
+
+      const q1 = new TextInputBuilder().setCustomId('q_name').setLabel('اسمك').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50);
+      const q2 = new TextInputBuilder().setCustomId('q_age').setLabel('عمرك').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(10);
+      const q3 = new TextInputBuilder().setCustomId('q_from').setLabel('من وين').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(60);
+      const q4 = new TextInputBuilder().setCustomId('q_experience').setLabel('خبراتك').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
+      const q5 = new TextInputBuilder().setCustomId('q_time').setLabel('كم لك ب دسكورد').setStyle(TextInputStyle.Short).setRequired(true);
+      const q6 = new TextInputBuilder().setCustomId('q_benefit').setLabel('ماذا نستفيد منك').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const q7 = new TextInputBuilder().setCustomId('q_use').setLabel('تستعمل شعارنا؟ (نعم/لا)').setStyle(TextInputStyle.Short).setRequired(true);
+      const q8 = new TextInputBuilder().setCustomId('q_admin_before').setLabel('كم صرت اداري ب سيرفرات').setStyle(TextInputStyle.Short).setRequired(true);
+      const q9 = new TextInputBuilder().setCustomId('q_rules_ack').setLabel('أكد أنك قرأت القوانين').setStyle(TextInputStyle.Paragraph).setRequired(true);
+
+      // Add inputs in ActionRows (modal supports up to 5 components per modal => must use multiple modals? Discord limits 5 inputs per modal)
+      // Workaround: group some answers together in longer Paragraph inputs to fit within 5 inputs.
+      // Here we will include 5 inputs combining multiple fields in some.
+      // Build 5 inputs:
+      const a1 = new TextInputBuilder().setCustomId('a1').setLabel('1) الاسم | 2) العمر | 3) من وين').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const a2 = new TextInputBuilder().setCustomId('a2').setLabel('4) خبراتك').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const a3 = new TextInputBuilder().setCustomId('a3').setLabel('5) كم لك ب دسكورد | 6) ماذا نستفيد منك').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const a4 = new TextInputBuilder().setCustomId('a4').setLabel('7) تستعمل شعارنا؟ | 8) كم صرت اداري ب سيرفرات').setStyle(TextInputStyle.Short).setRequired(true);
+      const a5 = new TextInputBuilder().setCustomId('a5').setLabel('9) تأكيد قراءة القوانين').setStyle(TextInputStyle.Paragraph).setRequired(true);
+
+      // Attach inputs to modal (max 5)
+      const row1 = new ActionRowBuilder().addComponents(a1);
+      const row2 = new ActionRowBuilder().addComponents(a2);
+      const row3 = new ActionRowBuilder().addComponents(a3);
+      const row4 = new ActionRowBuilder().addComponents(a4);
+      const row5 = new ActionRowBuilder().addComponents(a5);
+
+      modal.addComponents(row1, row2, row3, row4, row5);
+      return interaction.showModal(modal);
+    }
+
+    // ===== Modal submit for apply =====
+    if (interaction.isModalSubmit() && interaction.customId && interaction.customId.startsWith('apply_modal|')) {
+      await interaction.deferReply({ ephemeral: true }).catch(()=>{});
+      const args = interaction.customId.split('|');
+      const answersChannelId = args[1];
+      const answersChannel = await client.channels.fetch(answersChannelId).catch(()=>null);
+      // Gather answers
+      const a1 = interaction.fields.getTextInputValue('a1');
+      const a2 = interaction.fields.getTextInputValue('a2');
+      const a3 = interaction.fields.getTextInputValue('a3');
+      const a4 = interaction.fields.getTextInputValue('a4');
+      const a5 = interaction.fields.getTextInputValue('a5');
+      // Build embed and send to answersChannel
+      const embed = new EmbedBuilder()
+        .setTitle(`تقديم الادارة - ${interaction.user.username}`)
+        .setDescription(`**معلومات المتقدم**`)
+        .addFields(
+          { name: 'تفاصيل', value: `${a1}\n\n${a2}\n\n${a3}\n\n${a4}\n\n${a5}` }
+        )
+        .setThumbnail(interaction.user.displayAvatarURL({ extension: 'png' }))
+        .setColor(0xC62828)
+        .setFooter({ text: `المتقدم: ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ extension: 'png' }) });
+
+      if (answersChannel && answersChannel.isTextBased()) {
+        await answersChannel.send({ content: `<@&${SUPPORT_ROLE}> ${interaction.user}`, embeds: [embed] }).catch(()=>{});
+      }
+      await interaction.editReply({ content: 'تم إرسال نموذجك. شكراً لتقديمك!', ephemeral: true });
+      return;
+    }
+
+    // ===== Select menu inside buy ticket (choose role) =====
+    if (interaction.isStringSelectMenu() && interaction.customId && interaction.customId.startsWith('buy_select|')) {
+      await interaction.deferReply({ ephemeral: true });
+      const args = interaction.customId.split('|');
+      const ownerId = args[1];
+      const choiceIdx = Number(interaction.values[0]);
+      const purchase = PURCHASE_ROLES[choiceIdx];
+      if (!purchase) return interaction.editReply({ content: 'خيار غير صالح.', ephemeral: true });
+
+      const channel = interaction.channel;
+      // Store chosen role id & amount in channel topic
+      await channel.setTopic(`ticket_type:buy;owner:${ownerId};choice:${choiceIdx}`).catch(()=>{});
+
+      // Send instruction with amount and target
+      const embed = new EmbedBuilder()
+        .setTitle('شراء رتبة')
+        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل ${purchase.amount} إلى <@${PAYMENT_TARGET_ID}>**\nبعد التحويل انتظر تأكيد الدفع.`)
+        .setColor(0xF57C00);
+
+      await channel.send({ content: `<@${ownerId}>`, embeds: [embed] });
+      await interaction.editReply({ content: 'تم تسجيل اختيارك. قم بتحويل المبلغ ثم انتظر التحقق.', ephemeral: true });
+      return;
+    }
+
+    // ===== Buttons in general: claim/close/reopen/delete =====
     if (interaction.isButton()) {
-      const customId = interaction.customId;
+      const cid = interaction.customId;
       const ch = interaction.channel;
-      if (!ch || !ch.topic) return interaction.reply({ content: 'لا يمكن تنفيذ هذا الإجراء هنا.', ephemeral: true });
+      if (!ch || !ch.topic) return interaction.reply({ content: 'هذا الإجراء غير متاح هنا.', ephemeral: true });
 
-      const parsed = Object.fromEntries(ch.topic.split(';').map(s => s.split(':')));
-      const type = parsed.type;
-      const owner = parsed.owner;
+      const topicObj = Object.fromEntries(ch.topic.split(';').map(kv => kv.split(':')));
+      const type = topicObj['ticket_type'];
+      const owner = topicObj['owner'];
 
-      // استلام
-      if (customId === 'claim_ticket') {
-        // مُن يحق له الاستلام؟
+      // Claim
+      if (cid === 'claim_ticket') {
+        // Determine who can claim depending on type
         const isAdmin = interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
         const isSupport = interaction.member.roles.cache.has(SUPPORT_ROLE);
+        const isVerify = interaction.member.roles.cache.has(VERIFY_GIRLS_ROLE);
 
-        if (type === 'admin_apply' || type === 'complaint_staff') {
+        if (type === 'complaint_staff' || type === 'admin_apply') {
           if (!isAdmin) return interaction.reply({ content: '❌ هذه التذكرة مخصصة للأدمن فقط.', ephemeral: true });
+        } else if (type === 'verify_girls') {
+          if (!isVerify) return interaction.reply({ content: '❌ لا يمكنك استلام هذه التذكرة.', ephemeral: true });
         } else {
           if (!isSupport && !isAdmin) return interaction.reply({ content: '❌ لا يمكنك استلام هذه التذكرة.', ephemeral: true });
         }
 
-        // لو تم استلامها مسبقاً
-        if (parsed.claimer) {
-          return interaction.reply({ content: `تم استلام هذه التذكرة بالفعل من قبل <@${parsed.claimer}>`, ephemeral: true });
+        if (topicObj.claimer) return interaction.reply({ content: `تم استلام هذه التذكرة مسبقاً من قبل <@${topicObj.claimer}>`, ephemeral: true });
+
+        const newTopic = ch.topic + `;claimer:${interaction.user.id}`;
+        await ch.setTopic(newTopic).catch(()=>{});
+        // Prevent others from writing if support role - allow claimer
+        if (type !== 'buy') {
+          await ch.permissionOverwrites.edit(SUPPORT_ROLE, { SendMessages: false }).catch(()=>{});
         }
-
-        // تحديث التوبيك
-        const newTopic = `${ch.topic};claimer:${interaction.user.id}`;
-        await ch.setTopic(newTopic).catch(() => {});
-
-        // منع فريق الدعم من الكتابة كلهم و السماح للمستلم فقط
-        if (type !== 'admin_apply' && type !== 'complaint_staff') {
-          await ch.permissionOverwrites.edit(SUPPORT_ROLE, { SendMessages: false }).catch(() => {});
-        }
-        await ch.permissionOverwrites.edit(interaction.user.id, { SendMessages: true }).catch(() => {});
-
+        await ch.permissionOverwrites.edit(interaction.user.id, { SendMessages: true }).catch(()=>{});
         await ch.send(`سوف يتم التعامل معك من قبل الأداري ${interaction.member} اتفضل`);
         return interaction.reply({ content: '✅ تم استلام التذكرة', ephemeral: true });
       }
 
-      // إغلاق
-      if (customId === 'close_ticket') {
-        // إخفاء القناة عن الجميع (يستطيع المدير فقط رؤيتها بعد الإغلاق)
+      // Close
+      if (cid === 'close_ticket') {
+        // hide channel from everyone except bots & admins (we will leave only bot visible)
         await ch.permissionOverwrites.set([
           { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: SUPPORT_ROLE, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: owner, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: interaction.guild.members.me.id, allow: [PermissionsBitField.Flags.ViewChannel] }
-        ]).catch(() => {});
-
-        // إرسال رسالة تحكم مع أزرار حذف/إعادة فتح
+        ]).catch(()=>{});
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId('delete_ticket').setLabel('حذف التذكرة').setStyle(ButtonStyle.Danger),
           new ButtonBuilder().setCustomId('reopen_ticket').setLabel('إعادة فتح').setStyle(ButtonStyle.Success)
         );
-        await ch.send({ embeds: [new EmbedBuilder().setTitle('تحكم المسؤولين')], components: [row] }).catch(() => {});
+        await ch.send({ embeds: [new EmbedBuilder().setTitle('تحكم المسؤولين')], components: [row] }).catch(()=>{});
         return interaction.reply({ content: '🔒 تم إغلاق التذكرة', ephemeral: true });
       }
 
-      // إعادة فتح
-      if (customId === 'reopen_ticket') {
-        const ownerId = parsed.owner;
+      // Reopen
+      if (cid === 'reopen_ticket') {
+        // find owner from topic
+        const ownerId = topicObj.owner;
         const perms = [
           { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: ownerId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
         ];
-        if (type !== 'admin_apply' && type !== 'complaint_staff') {
+        // if type allowed support, add support role back
+        if (type === 'support' || type === 'complaint_member' || type === 'verify_girls') {
           perms.push({ id: SUPPORT_ROLE, allow: [PermissionsBitField.Flags.ViewChannel] });
         }
-        await ch.permissionOverwrites.set(perms).catch(() => {});
+        await ch.permissionOverwrites.set(perms).catch(()=>{});
         return interaction.reply({ content: '✅ تمت إعادة فتح التذكرة', ephemeral: true });
       }
 
-      // حذف
-      if (customId === 'delete_ticket') {
-        await ch.delete().catch(() => {});
-        return interaction.reply({ content: '🗑️ تم حذف القناة', ephemeral: true }).catch(() => {});
+      // Delete
+      if (cid === 'delete_ticket') {
+        await ch.delete().catch(()=>{});
+        return interaction.reply({ content: '🗑️ تم حذف التذكرة', ephemeral: true });
       }
     }
-  } catch (e) {
-    console.error('Interaction handler error:', e);
+  } catch (err) {
+    console.error('Interaction error:', err);
+    if (interaction.replied || interaction.deferred) {
+      try { await interaction.editReply({ content: 'حدث خطأ داخلي.', ephemeral: true }); } catch {}
+    } else {
+      try { await interaction.reply({ content: 'حدث خطأ.', ephemeral: true }); } catch {}
+    }
   }
 });
 
-// -------------------- حفظ نهائي قبل الخروج --------------------
-process.on('SIGINT', () => {
-  console.log('SIGINT received — saving data and exiting...');
-  saveAll(); process.exit();
-});
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received — saving data and exiting...');
-  saveAll(); process.exit();
+// ----------------- Message listener to monitor ProBot payment confirmations -----------------
+client.on('messageCreate', async (message) => {
+  try {
+    // only from ProBot
+    if (String(message.author.id) !== PROBOT_ID) return;
+
+    // check message content pattern examples given:
+    // e.g. "ـ (user), قام بتحويل `$3000` لـ <@801738764077891594> ** |:moneybag:"
+    const content = message.content;
+    if (!content.includes(`<@${PAYMENT_TARGET_ID}>`)) return;
+
+    // find user mention in content (the sender mention is usually in the message)
+    // We'll attempt to capture the first mention of a user (not the target)
+    const mentions = message.mentions.users;
+    // mentions might include the PAYMENT_TARGET_ID as well; we need the other one
+    let payerId = null;
+    for (const [id, user] of mentions) {
+      if (id !== PAYMENT_TARGET_ID) { payerId = id; break; }
+    }
+    if (!payerId) {
+      // maybe the message includes a textual username — fallback: try to parse pattern `ـ (user),`
+      // but we'll skip if can't find payer
+      return;
+    }
+
+    // Extract amount from the message like `$3000` or `\$3000` etc
+    const amountMatch = content.match(/\$([\d,\.]+)/);
+    if (!amountMatch) return;
+    const amountNum = Number(String(amountMatch[1]).replace(/[,\.]/g, ''));
+
+    // Now we must find if there's an open ticket for this payer that expects a purchase with this amount
+    // Search in guild channels for a channel topic that contains owner:payerId and type:buy and choice index
+    for (const guild of client.guilds.cache.values()) {
+      // iterate channels in guild
+      const channels = guild.channels.cache.filter(c => c.isTextBased());
+      for (const ch of channels.values()) {
+        try {
+          const topic = ch.topic || '';
+          if (!topic.includes('ticket_type:buy') || !topic.includes(`owner:${payerId}`)) continue;
+          // parse choice
+          const parsed = Object.fromEntries(topic.split(';').map(s => s.split(':')));
+          const choiceIdx = Number(parsed.choice);
+          const purchase = PURCHASE_ROLES[choiceIdx];
+          if (!purchase) continue;
+          // compare amounts: purchase.amount vs amountNum (approx)
+          // Because amounts in messages may be like 3000 vs 3158 etc; we'll require exact match to be safe
+          if (Number(purchase.amount) !== Number(amountNum)) continue;
+          // Also verify target mention present (already checked)
+          // Grant role:
+          // For special choice (index 3) roleId contains two ids separated by '/'
+          let roleIdToGive = purchase.roleId;
+          if (purchase.special) {
+            // special handling: if user has role 1269801178146017370 give King (first id),
+            // else if has 1272361216840302592 give Princess (second id)
+            const member = await guild.members.fetch(payerId).catch(()=>null);
+            if (member) {
+              if (member.roles.cache.has('1269801178146017370')) {
+                roleIdToGive = purchase.roleId.split('/')[0]; // first
+              } else if (member.roles.cache.has('1272361216840302592')) {
+                roleIdToGive = purchase.roleId.split('/')[1]; // second
+              } else {
+                // If none, default to first id
+                roleIdToGive = purchase.roleId.split('/')[0];
+              }
+            } else {
+              roleIdToGive = purchase.roleId.split('/')[0];
+            }
+          }
+
+          // Give role
+          const member = await guild.members.fetch(payerId).catch(()=>null);
+          if (member) {
+            // roleIdToGive might be string with slash in some cases, ensure pick first if comma
+            roleIdToGive = String(roleIdToGive).split('/')[0];
+            await member.roles.add(roleIdToGive).catch(()=>{});
+            // send DM
+            try {
+              await member.send(`تم إضافة رتبةك بنجاح: <@&${roleIdToGive}>`).catch(()=>{});
+            } catch {}
+          }
+
+          // Close ticket: either delete channel or hide & send confirmation
+          await ch.send({ content: `تم استلام دفعتك وتمت إضافة الرتبة <@&${roleIdToGive}>. سيتم إغلاق التذكرة.` }).catch(()=>{});
+          // we can delete channel after short delay
+          setTimeout(()=>{ ch.delete().catch(()=>{}); }, 3000);
+
+        } catch (err) {
+          console.warn('Error processing payment message for channel', ch.id, err);
+        }
+      }
+    }
+
+  } catch (e) {
+    console.error('ProBot monitor error:', e);
+  }
 });
 
-// -------------------- تسجيل الدخول --------------------
+// ----------------- Login -----------------
 client.login(TOKEN).catch(err => {
-  console.error('Failed to login:', err);
+  console.error('Failed to login :', err);
   process.exit(1);
 });
