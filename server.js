@@ -10,9 +10,9 @@ if (!TOKEN) {
 }
 
 // ---------- CONFIG - عدل هذه القيم حسب سيرفرك ----------
-const OWNER_ID = 'YOUR_OWNER_ID_HERE'; // صاحب السيرفر/المنشئ - فقط هو يقدر يستخدم أوامر السلاش أيضا
-const ADMIN_ROLE_ID = '1268350577499443283'; // الرتب العليا اللي تقدر تستخدم أوامر السلاش أيضاً
-const SUPPORT_ROLE = '1406690376156319764'; // رتبة فريق الدعم (تمنشن في التذاكر)
+const OWNER_ID = '801738764077891594'; // صاحب السيرفر/المنشئ - فقط هو يقدر يستخدم أوامر السلاش أيضا
+const ADMIN_ID = '1177580652317646958'; // الرتب العليا اللي تقدر تستخدم أوامر السلاش أيضاً
+const SUPPORT_ROLE = '1268347839919030272'; // رتبة فريق الدعم (تمنشن في التذاكر)
 const VERIFY_GIRLS_ROLE = '1407757087240359976'; // رتبة الموثقة
 const CANNOT_BUY_ROLE = '1272270004968099907'; // ممنوع من شراء الرتب
 const PROBOT_ID = '282859044593598464'; // ID البروبوت المراقب للمدفوعات
@@ -63,7 +63,7 @@ function parseTopic(topic = '') {
 function canUseSlash(interaction) {
   if (!interaction.member) return false;
   if (String(interaction.user.id) === String(OWNER_ID)) return true;
-  if (interaction.member.roles.cache.has(ADMIN_ROLE_ID)) return true;
+  if (interaction.member.roles.cache.has(ADMIN_ID)) return true;
   // يمكن إضافة صلاحيات أخرى إن رغبت
   return false;
 }
