@@ -534,7 +534,7 @@ client.on('messageCreate', async message => {
 
     if (!m) {
       // fallback that requires PAYMENT_TARGET_ID mention
-      const altRegex = new RegExp(`\\*\\*ـ\\s*(.+?),\\s*قام\\s*بتحويل\\s*\`?\\$?(\\d+)\\`?\\s*لـ\\s*<@!?(?:${PAYMENT_TARGET_ID})>\\s*\\*\\*\\s*\\|:moneybag:`);
+      const altRegex = new RegExp("\\*\\*ـ\\s*(.+?),\\s*قام\\s*بتحويل\\s*`?\\$?(\\d+)`?\\s*لـ\\s*<@!?(?:" + PAYMENT_TARGET_ID + ")>\\s*\\*\\*\\s*\\|:moneybag:");
       m = content.match(altRegex);
     }
     if (!m) return;
