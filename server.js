@@ -50,16 +50,6 @@ const client = new Client({
   partials: [ Partials.Channel ]
 });
 
-client.on("ready", async () => {
-  const commands = [
-    {
-      name: "setup-admin-apply",
-      description: "إعداد بانل تقديم الإدارة",
-    },
-  ];
-
-  await client.application.commands.set(commands);
-  console.log("✅ تم تسجيل أوامر السلاش بنجاح!");
 });
 // helpers
 function canUseSlash(member) {
@@ -102,6 +92,10 @@ client.once('ready', async () => {
         { name: 'claim_log_channel', description: 'قناة لوق استلام التذاكر', type: 7, required: true },
         { name: 'purchase_log_channel', description: 'قناة لوق عمليات الشراء', type: 7, required: true }
       ]
+    },
+     {
+      name: "setup-admin-apply",
+      description: "إعداد بانل تقديم الإدارة",
     },
     {
       name: 'verifysetup',
