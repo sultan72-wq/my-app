@@ -50,7 +50,6 @@ const client = new Client({
   partials: [ Partials.Channel ]
 });
 
-});
 // helpers
 function canUseSlash(member) {
   if (!member) return false;
@@ -96,6 +95,10 @@ client.once('ready', async () => {
      {
       name: "setup-admin-apply",
       description: "إعداد بانل تقديم الإدارة",
+      options: [
+        { name: 'panel_channel', description: 'قناة بانل التقديم', type: 7, required: true },
+        { name: 'answer_channel', description: 'قناة اجابات التقديم', type: 7, required: true },
+      ]
     },
     {
       name: 'verifysetup',
@@ -589,24 +592,11 @@ async function sendVerifyPanel(channel) {
 }
 // =============== نظام تقديم الإدارة ===============
 
-const { SlashCommandBuilder } = require('discord.js');
-const path = require('path');
-
-// مسار ملف الإعدادات
-const applyConfigPath = path.join(__dirname, 'applyConfig.json');
-
-// تأكد أن ملف الإعدادات موجود
-if (!fs.existsSync(applyConfigPath)) {
-  fs.writeFileSync(applyConfigPath, JSON.stringify({ panelChannel: null, answersChannel: null }, null, 2));
-}
-
-// ===== أمر السلاش setup-admin-apply =====
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== 'setup-admin-apply') return;
 
   // التحقق من الصلاحيات (المنشئ أو الرتب العليا فقط)
-  const ownerId = 'ضع_هنا_ايدي_المنشئ';
   if (interaction.user.id !== ownerId && !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
     return interaction.reply({ content: '❌ لا تملك صلاحية استخدام هذا الأمر.', ephemeral: true });
   }
