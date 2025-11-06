@@ -582,6 +582,175 @@ async function sendVerifyPanel(channel) {
   await channel.send({ embeds: [embed], components: [btn] }).catch(()=>{});
 }
 
+// 🟢 نظام تقديم الإدارة (Admin Apply System)
+
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
+
+// ====== أمر إعداد بانل التقديم ======
+client.on('ready', async () => {
+  const data = new SlashCommandBuilder()
+    .setName('setup-admin-apply')
+    .setDescription('إعداد بانل تقديم الإدارة')
+    .addChannelOption(option =>
+      option
+        .setName('panel_channel')
+        .setDescription('الروم الذي تُرسل فيه بانل التقديم')
+        .setRequired(true)
+    )
+    .addChannelOption(option =>
+      option
+        .setName('answers_channel')
+        .setDescription('الروم الذي تُرسل فيه إجابات التقديم')
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+  try {
+    await client.application.commands.create(data);
+    console.log('✅ تم تسجيل أمر setup-admin-apply بنجاح');
+  } catch (error) {
+    console.error('❌ خطأ أثناء تسجيل الأمر:', error);
+  }
+});
+
+// ====== تنفيذ أمر إعداد بانل التقديم ======
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== 'setup-admin-apply') return;
+
+  const panelChannel = interaction.options.getChannel('panel_channel');
+  const answersChannel = interaction.options.getChannel('answers_channel');
+
+  const embed = new EmbedBuilder()
+    .setTitle('تقديم الإدارة')
+    .setDescription('للتقديم على طاقم الإدارة في مجتمعنا\nأنقر الزر فالأسفل ثم أجب عن الأسئلة')
+    .setColor('#2f3136');
+
+  const button = new ButtonBuilder()
+    .setCustomId('apply_admin_button')
+    .setLabel('تقديم الإدارة')
+    .setStyle(ButtonStyle.Primary);
+
+  const row = new ActionRowBuilder().addComponents(button);
+
+  await panelChannel.send({ embeds: [embed], components: [row] });
+
+  await interaction.reply({
+    content: `✅ تم إرسال بانل التقديم في ${panelChannel}`,
+    ephemeral: true,
+  });
+
+  // حفظ روم الإجابات في الكاش المؤقت
+  client.applyAnswersChannel = answersChannel.id;
+});
+
+// ====== عند الضغط على زر التقديم ======
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (interaction.customId !== 'apply_admin_button') return;
+
+  // إنشاء الفورم (Modal)
+  const modal = new ModalBuilder()
+    .setCustomId('admin_apply_modal')
+    .setTitle('تقديم الإدارة');
+
+  const q1 = new TextInputBuilder()
+    .setCustomId('name')
+    .setLabel('1 - أسمك؟')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const q2 = new TextInputBuilder()
+    .setCustomId('age')
+    .setLabel('2 - عمرك؟')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const q3 = new TextInputBuilder()
+    .setCustomId('experience')
+    .setLabel('3 - خبراتك (بالتفصيل)')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  const q4 = new TextInputBuilder()
+    .setCustomId('discord_time')
+    .setLabel('4 - كم لك فالديسكورد؟')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const q5 = new TextInputBuilder()
+    .setCustomId('using_logo')
+    .setLabel('5 - تستعمل شعارنا؟ (اجباري)')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const row1 = new ActionRowBuilder().addComponents(q1);
+  const row2 = new ActionRowBuilder().addComponents(q2);
+  const row3 = new ActionRowBuilder().addComponents(q3);
+  const row4 = new ActionRowBuilder().addComponents(q4);
+  const row5 = new ActionRowBuilder().addComponents(q5);
+
+  modal.addComponents(row1, row2, row3, row4, row5);
+
+  await interaction.showModal(modal);
+});
+
+// ====== عند إرسال الإجابات ======
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+  if (interaction.customId !== 'admin_apply_modal') return;
+
+  const answersChannelId = client.applyAnswersChannel;
+  const answersChannel = interaction.guild.channels.cache.get(answersChannelId);
+
+  const name = interaction.fields.getTextInputValue('name');
+  const age = interaction.fields.getTextInputValue('age');
+  const experience = interaction.fields.getTextInputValue('experience');
+  const discordTime = interaction.fields.getTextInputValue('discord_time');
+  const usingLogo = interaction.fields.getTextInputValue('using_logo');
+
+  const embed = new EmbedBuilder()
+    .setAuthor({
+      name: interaction.user.tag,
+      iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
+    })
+    .setColor('#5865F2')
+    .setTitle('📝 تقديم إدارة جديد')
+    .setDescription(`**1 - أسمك؟**\n${name}\n\n**2 - عمرك؟**\n${age}\n\n**3 - خبراتك (بالتفصيل):**\n${experience}\n\n**4 - كم لك فالديسكورد؟**\n${discordTime}\n\n**5 - تستعمل شعارنا؟**\n${usingLogo}`)
+    .setTimestamp();
+
+  if (answersChannel) {
+    await answersChannel.send({ embeds: [embed] });
+  }
+
+  // إرسال رسالة للعضو في الخاص
+  try {
+    await interaction.user.send('**لقد تم إرسال اجاباتك بنجاح يرجى انتظار الرد\nشكراً لاختيارك مجتمعنا ✅**');
+  } catch {
+    await interaction.reply({
+      content: '**لقد تم إرسال اجاباتك بنجاح يرجى انتظار الرد\nشكراً لاختيارك مجتمعنا ✅**',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.reply({
+    content: '✅ تم إرسال إجاباتك بنجاح!',
+    ephemeral: true,
+  });
+});
+
+
 // ensure storage fields exist
 if (!storage.panelChannel) storage.panelChannel = null;
 if (!storage.claimLogChannel) storage.claimLogChannel = null;
