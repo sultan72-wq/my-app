@@ -404,7 +404,8 @@ client.on('messageCreate', async message => {
     // capture username (any chars except comma), amount (digits), target mention (<@!id> or <@id>)
     const regex = /\*\*ـ\s*(.+?),\s*قام بتحويل\s*`(\d+)`\s*لـ\?\s*/; // fallback (won't match) - keep safe
     // We'll use a stricter pattern for the real message:
-    const strictRegex = /\*\*ـ\s*(.+?),\s*قام\s*بتحويل\s*`?(\d+)`?\s*لـ\s*<@!?(?:\s*)?(\d+)>?\s*\*\*\s*\|\:moneybag:/;
+    const strictRegex = /\*\*ـ\s*(.+?),\s*قام\s*بتحويل\s*`?\$?(\d+)`?\s*لـ\s*<@!?(?:\s*)?(\d+)>?\s*\*\*\s*\|\:moneybag:/;
+
     // try strict
     let m = content.match(strictRegex);
     if (!m) {
