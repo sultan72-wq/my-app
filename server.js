@@ -705,16 +705,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.customId !== 'admin_apply_modal') return;
 
   const answersChannelId = client.applyAnswersChannel;
-  const answersChannel = await interaction.guild.channels.fetch(answersChannelId).catch(() => null);
-
-// تحقق أن القناة موجودة ونصية
-if (!answersChannel || answersChannel.type !== 0) {
-  console.error(`⚠️ لم يتم العثور على قناة الإجابات أو أنها ليست قناة نصية. ID: ${answersChannelId}`);
-  return interaction.followUp({
-    content: "حدث خطأ أثناء إرسال الإجابات. تأكد من أن قناة الإجابات صحيحة.",
-    flags: 64
-  });
-}
+  const answersChannel = interaction.guild.channels.cache.get(answersChannelId);}
 
 // أرسل الإجابات للروم
 await answersChannel.send({ embeds: [embed] });
