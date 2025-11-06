@@ -705,7 +705,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.customId !== 'admin_apply_modal') return;
 
   const answersChannelId = client.applyAnswersChannel;
-  const answersChannel = interaction.guild.channels.cache.get(answersChannelId);
+  const answersChannel = await interaction.guild.channels.fetch(answersChannelId).catch(() => null);
 
   const name = interaction.fields.getTextInputValue('name');
   const age = interaction.fields.getTextInputValue('age');
