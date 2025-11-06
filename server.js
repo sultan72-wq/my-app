@@ -332,11 +332,11 @@ client.on('interactionCreate', async interaction => {
       // show modal with 5 questions
       const modal = new ModalBuilder().setCustomId('admin_apply_modal').setTitle('📝 نموذج تقديم الإدارة');
 
-      const q1 = new TextInputBuilder().setCustomId('q1').setLabel('1- اسمك الحقيقي؟').setStyle(TextInputStyle.Short).setRequired(true);
-      const q2 = new TextInputBuilder().setCustomId('q2').setLabel('2- كم عمرك؟').setStyle(TextInputStyle.Short).setRequired(true);
-      const q3 = new TextInputBuilder().setCustomId('q3').setLabel('3- كم لديك خبرة في الإدارة؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
-      const q4 = new TextInputBuilder().setCustomId('q4').setLabel('4- هل سبق أن كنت إدارياً في سيرفر آخر؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
-      const q5 = new TextInputBuilder().setCustomId('q5').setLabel('5- لماذا ترغب بالانضمام إلى طاقم الإدارة؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const q1 = new TextInputBuilder().setCustomId('q1').setLabel('1- اسمك؟').setStyle(TextInputStyle.Short).setRequired(true);
+      const q2 = new TextInputBuilder().setCustomId('q2').setLabel('2- عمرك؟').setStyle(TextInputStyle.Short).setRequired(true);
+      const q3 = new TextInputBuilder().setCustomId('q3').setLabel('3- خبراتك؟ (بالتفصيل)').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const q4 = new TextInputBuilder().setCustomId('q4').setLabel('4 - هل كنت أداري من قبل؟ (اجابه ب نعم او لا)').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const q5 = new TextInputBuilder().setCustomId('q5').setLabel('5 - تستعمل شعارنا؟ (اجباري)').setStyle(TextInputStyle.Paragraph).setRequired(true);
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(q1),
@@ -381,7 +381,7 @@ client.on('interactionCreate', async interaction => {
           `**2- عمرك؟**\n${answers.age}\n\n` +
           `**3- خبرتك الإدارية؟**\n${answers.exp}\n\n` +
           `**4- هل كنت إدارياً من قبل؟**\n${answers.adminBefore}\n\n` +
-          `**5- سبب رغبتك بالانضمام:**\n${answers.reason}`
+          `**5- تستعمل الشعار؟**\n${answers.reason}`
         )
         .setTimestamp();
 
