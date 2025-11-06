@@ -707,6 +707,18 @@ client.on('interactionCreate', async (interaction) => {
   const answersChannelId = client.applyAnswersChannel;
   const answersChannel = await interaction.guild.channels.fetch(answersChannelId).catch(() => null);
 
+// تحقق أن القناة موجودة ونصية
+if (!answersChannel || answersChannel.type !== 0) {
+  console.error(`⚠️ لم يتم العثور على قناة الإجابات أو أنها ليست قناة نصية. ID: ${answersChannelId}`);
+  return interaction.followUp({
+    content: "حدث خطأ أثناء إرسال الإجابات. تأكد من أن قناة الإجابات صحيحة.",
+    flags: 64
+  });
+}
+
+// أرسل الإجابات للروم
+await answersChannel.send({ embeds: [embed] });
+
   const name = interaction.fields.getTextInputValue('name');
   const age = interaction.fields.getTextInputValue('age');
   const experience = interaction.fields.getTextInputValue('experience');
