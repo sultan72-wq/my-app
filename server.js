@@ -50,6 +50,17 @@ const client = new Client({
   partials: [ Partials.Channel ]
 });
 
+client.on("ready", async () => {
+  const commands = [
+    {
+      name: "setup-admin-apply",
+      description: "إعداد بانل تقديم الإدارة",
+    },
+  ];
+
+  await client.application.commands.set(commands);
+  console.log("✅ تم تسجيل أوامر السلاش بنجاح!");
+});
 // helpers
 function canUseSlash(member) {
   if (!member) return false;
