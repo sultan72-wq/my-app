@@ -587,13 +587,6 @@ async function sendVerifyPanel(channel) {
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
 } = require('discord.js');
 
 // ====== أمر إعداد بانل التقديم ======
