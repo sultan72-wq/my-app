@@ -588,6 +588,13 @@ async function sendVerifyPanel(channel) {
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
+  EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require('discord.js');
 
 // ====== أمر إعداد بانل التقديم ======
@@ -705,10 +712,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.customId !== 'admin_apply_modal') return;
 
   const answersChannelId = client.applyAnswersChannel;
-  const answersChannel = interaction.guild.channels.cache.get(answersChannelId);}
-
-// أرسل الإجابات للروم
-await answersChannel.send({ embeds: [embed] });
+  const answersChannel = interaction.guild.channels.cache.get(answersChannelId);
 
   const name = interaction.fields.getTextInputValue('name');
   const age = interaction.fields.getTextInputValue('age');
