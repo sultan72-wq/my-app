@@ -585,7 +585,6 @@ async function sendVerifyPanel(channel) {
 // =============== نظام تقديم الإدارة ===============
 
 const { SlashCommandBuilder } = require('discord.js');
-const fs = require('fs');
 const path = require('path');
 
 // مسار ملف الإعدادات
