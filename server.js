@@ -249,7 +249,8 @@ client.on('interactionCreate', async interaction => {
 
       if (choice === 'reload_panel') {
         const ch = interaction.channel;
-        return interaction.editReply({ content: 'تم تحديث البانل بنجاح.', ephemeral: true });
+        await sendTicketPanel(ch);
+        return interaction.editReply({ content: 'تم تحديث البانل هنا.', ephemeral: true });
       }
 
       if (choice === 'buy_role') {
@@ -320,10 +321,10 @@ client.on('interactionCreate', async interaction => {
       await ch.setTopic(`ticket_type:buy;owner:${ownerId};choice:${idx}`).catch(()=>{});
       const embed = new EmbedBuilder()
         .setTitle('شراء رتبة')
-        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**
+        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**\n(سيصل الصافي: ${purchase.amountNet})\n\n*انتظر رسالة تأكيد التحويل من البروبوت*`)
         .setColor(0xF57C00);
       await ch.send({ content: `<@${ownerId}>`, embeds: [embed] }).catch(()=>{});
-      return interaction.editReply({ content: 'تم تسجيل اختيارك. قم بالتحويل وانتظر تأكيد لدفع.', ephemeral: true });
+      return interaction.editReply({ content: 'تم تسجيل اختيارك. قم بالتحويل وانتظر تأكيد بروبوت الدفع.', ephemeral: true });
     }
 
     // apply button -> open modal
@@ -386,6 +387,21 @@ client.on('interactionCreate', async interaction => {
 
       if (answersChannel && answersChannel.isTextBased()) {
         await answersChannel.send({ embeds: [embed] }).catch(err => console.error('send to answersChannel failed:', err));
+const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId(`admin_accept|${interaction.user.id}`)
+    .setLabel('قبول')
+    .setStyle(ButtonStyle.Success),
+  new ButtonBuilder()
+    .setCustomId(`admin_reject|${interaction.user.id}`)
+    .setLabel('رفض')
+    .setStyle(ButtonStyle.Danger)
+);
+
+if (answersChannel && answersChannel.isTextBased()) {
+  await answersChannel.send({ embeds: [embed], components: [row] }).catch(err => console.error('send to answersChannel failed:', err));
+}
+
       } else {
         // if channel not found in this guild, try to find any channel with that id across client's cache
         try {
@@ -402,7 +418,8 @@ client.on('interactionCreate', async interaction => {
 
       // DM the user a confirmation
       try {
-        await interaction.user.send('لقد تم إرسال إجاباتك بنجاح ✅\nيرجى انتظار الرد.\nشكرًا لاختيارك **Md7 Community** ❤️');
+        await interaction.user.send('تم إرسال إجاباتك بنجاح ✅\nشكراً لاختيارك **Md7 Community** ❤️').catch(()=>{});
+
       } catch {
         // if DM failed (closed DM), send ephemeral reply
         await interaction.editReply({ content: 'لقد تم إرسال إجاباتك بنجاح ✅\nيرجى انتظار الرد.\nشكرًا لاختيارك **Md7 Community** ❤️', ephemeral: true }).catch(()=>{});
@@ -412,6 +429,31 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply({ content: '✅ تم إرسال إجاباتك بنجاح!', ephemeral: true }).catch(()=>{});
       return;
     }
+
+    if (interaction.isButton()) {
+  const [action, userId] = interaction.customId.split('|');
+
+  if ((action === 'admin_accept' || action === 'admin_reject') && userId) {
+    const member = await interaction.guild.members.fetch(userId).catch(()=>null);
+    if (!member) return interaction.reply({ content: 'المستخدم غير موجود.', ephemeral: true });
+
+    if (action === 'admin_accept') {
+      await member.send('لقد تم قبولك ✅\nيرجى التفاعل ابتداءً من الاحد القادم 🫡').catch(()=>{});
+      await interaction.reply({ content: `✅ تم إرسال رسالة قبول للعضو <@${userId}>`, ephemeral: true });
+    } else {
+      await member.send('لقد تم رفضك ❌\nفرصة سعيدة في المرة القادمة 💪').catch(()=>{});
+      await interaction.reply({ content: `❌ تم إرسال رسالة رفض للعضو <@${userId}>`, ephemeral: true });
+    }
+
+    // اجعل الزر غير قابل للضغط بعد ذلك
+    const msg = await interaction.message.fetch();
+    const disabledRow = new ActionRowBuilder().addComponents(
+      ...msg.components[0].components.map(b => ButtonBuilder.from(b).setDisabled(true))
+    );
+    await msg.edit({ components: [disabledRow] }).catch(()=>{});
+    return;
+  }
+}
 
     // generic buttons handling for tickets (claim/close/reopen/delete)
     if (interaction.isButton()) {
@@ -653,7 +695,7 @@ async function sendTicketPanel(channel) {
       '',
       'مـمـنوع تـسـتهـبل بالـتكـت',
       '',
-      'ملاحظه : أي مخالفه لهذي القواعد ممكن توصل فيك للباند النهائي من السيرفر!!'
+      'ملاحظه : أي مخالفه لهذي القواعد ممكن توصل فيك للباند النهائي من السيرفر ⚠️ !!'
     ].join('\n'))
     .setColor(0xC62828);
 
@@ -665,7 +707,6 @@ async function sendTicketPanel(channel) {
       { label: 'شراء رتبة 💵', value: 'buy_role' },
       { label: 'شكوى على عضو ☢️', value: 'complaint_member' },
       { label: 'شكوى على إداري ☣️', value: 'complaint_staff' },
-      { label: 'إعادة تحميل 🔄️', value: 'reload_panel' }
     );
 
   await channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] }).catch(()=>{});
