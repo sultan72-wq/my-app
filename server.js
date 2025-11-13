@@ -249,8 +249,7 @@ client.on('interactionCreate', async interaction => {
 
       if (choice === 'reload_panel') {
         const ch = interaction.channel;
-        await sendTicketPanel(ch);
-        return interaction.editReply({ content: 'تم تحديث البانل هنا.', ephemeral: true });
+        return interaction.editReply({ content: 'تم تحديث البانل بنجاح.', ephemeral: true });
       }
 
       if (choice === 'buy_role') {
@@ -321,10 +320,10 @@ client.on('interactionCreate', async interaction => {
       await ch.setTopic(`ticket_type:buy;owner:${ownerId};choice:${idx}`).catch(()=>{});
       const embed = new EmbedBuilder()
         .setTitle('شراء رتبة')
-        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**\n(سيصل الصافي: ${purchase.amountNet})\n\n*انتظر رسالة تأكيد التحويل من البروبوت*`)
+        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**
         .setColor(0xF57C00);
       await ch.send({ content: `<@${ownerId}>`, embeds: [embed] }).catch(()=>{});
-      return interaction.editReply({ content: 'تم تسجيل اختيارك. قم بالتحويل وانتظر تأكيد بروبوت الدفع.', ephemeral: true });
+      return interaction.editReply({ content: 'تم تسجيل اختيارك. قم بالتحويل وانتظر تأكيد لدفع.', ephemeral: true });
     }
 
     // apply button -> open modal
