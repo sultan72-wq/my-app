@@ -386,7 +386,6 @@ client.on('interactionCreate', async interaction => {
         .setTimestamp();
 
       if (answersChannel && answersChannel.isTextBased()) {
-        await answersChannel.send({ embeds: [embed] }).catch(err => console.error('send to answersChannel failed:', err));
 const row = new ActionRowBuilder().addComponents(
   new ButtonBuilder()
     .setCustomId(`admin_accept|${interaction.user.id}`)
