@@ -120,7 +120,7 @@ const autoReplies = [
   { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
   { trigger: ['بروح','سلام'], reply: 'الله معك 🫡' },
   { trigger: ['رابط'], reply: 'https://discord.gg/4sX5Pagbh5', adminOnly: true },
-  { trigger: ['-'], reply: 'لا تنسى تقييمك للاداري `<@${message.author.id}>` في https://discord.com/channels/1225825173358379131/1367573165898862602', roles: [SUPPORT_ROLE] }
+  { trigger: ['-'], reply: 'لا تنسى تقييمك للاداري `<@${msg.author.id}>` في https://discord.com/channels/1225825173358379131/1367573165898862602', roles: [SUPPORT_ROLE] }
 ];
 
 client.on('messageCreate', async msg => {
@@ -195,7 +195,8 @@ client.on('interactionCreate', async i => {
 
     const textTop = sort(xp,'text').slice(0,5);
     const voiceTop = sort(xp,'voice').slice(0,5);
-
+try { xp = JSON.parse(fs.readFileSync(XP_FILE)); } catch { xp = {}; }
+    
     const embed = new EmbedBuilder()
       .setTitle('🏆 المتصدرين')
       .addFields(
@@ -212,8 +213,3 @@ cron.schedule('0 4 * * *', () => { daily = {}; saveDaily(); });
 cron.schedule('0 4 * * 0', () => { weekly = {}; saveWeekly(); });
 cron.schedule('0 4 1 * *', () => { monthly = {}; saveMonthly(); });
   
-module.exports = (client) => {
-  client.on('messageCreate', msg => { ... });
-  client.on('voiceStateUpdate', (oldState, newState) => { ... });
-  client.on('interactionCreate', i => { ... });
-};
