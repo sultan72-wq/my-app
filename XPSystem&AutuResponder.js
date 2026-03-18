@@ -212,5 +212,3 @@ client.on('interactionCreate', async i => {
 cron.schedule('0 4 * * *', () => { daily = {}; saveDaily(); });
 cron.schedule('0 4 * * 0', () => { weekly = {}; saveWeekly(); });
 cron.schedule('0 4 1 * *', () => { monthly = {}; saveMonthly(); });
-
-client.login(process.env.TOKEN);
