@@ -138,7 +138,7 @@ module.exports = function(client) {
             { trigger: ['هلا'], reply: 'اهلين منور/ه❣️' },
             { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
             { trigger: ['-'], reply: `لا تنسى تقييمك للإداري <@${msg.author.id}> في https://discord.com`, roles: [SUPPORT_ROLE] },
-            { trigger: ['رابط'], reply: 'https://discord.gg', adminOnly: true },
+            { trigger: ['رابط'], reply: 'https://discord.gg/znkKxAsWWh', adminOnly: true },
             { trigger: ['شعار'], reply: '! 𝗠𝟳 -' }
         ];
 
