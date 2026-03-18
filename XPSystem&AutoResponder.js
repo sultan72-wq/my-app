@@ -61,12 +61,12 @@ const SUPPORT_ROLE = '1268350577499443283';
 
 // ===== ROLE REWARDS =====
 const levelRoles = {
-  5: 'ROLE_ID_5',
-  10: 'ROLE_ID_10',
-  20: 'ROLE_ID_20',
-  30: 'ROLE_ID_30',
-  40: 'ROLE_ID_40',
-  50: 'ROLE_ID_50'
+  5: '1269799133057777738',
+  10: '1269799647765991444',
+  20: '1269799898921046038',
+  30: '1269800227855138927',
+  40: '1269765734704218254',
+  50: '1268377832514519154'
 };
 
 async function levelUp(member, oldL, newL) {
@@ -121,7 +121,7 @@ const autoReplies = [
   { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
   { trigger: ['بروح','سلام'], reply: 'الله معك 🫡' },
   { trigger: ['رابط'], reply: 'https://discord.gg/4sX5Pagbh5', adminOnly: true },
-  { trigger: ['-'], reply: 'لا تنسى تقييمك للاداري (الشخص الي ارسل الرساله) في https://discord.com/channels/1225825173358379131/1367573165898862602', roles: [SUPPORT_ROLE] }
+  { trigger: ['-'], reply: 'لا تنسى تقييمك للاداري `<@${message.author.id}>` في https://discord.com/channels/1225825173358379131/1367573165898862602', roles: [SUPPORT_ROLE] }
 ];
 
 client.on('messageCreate', async msg => {
