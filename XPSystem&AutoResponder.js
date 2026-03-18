@@ -140,7 +140,7 @@ module.exports = function(client) {
         // تنفيذ الأوامر
         await handleCommands(msg);
 
-        // الردود التلقائية
+                // --- الردود التلقائية المحدثة (مع خاصية الـ Reply) ---
         const autoReplies = [
             { trigger: ['سلام عليكم', 'السلام عليكم', 'سلام'], reply: 'وعليكم السلام ورحمة الله وبركاته منور/ه ❣️' },
             { trigger: ['هلا'], reply: 'اهلين منور/ه❣️' },
@@ -151,10 +151,13 @@ module.exports = function(client) {
         for (const r of autoReplies) {
             if (r.trigger.some(t => msg.content.includes(t))) {
                 if (r.roles && !msg.member.roles.cache.has(SUPPORT_ROLE)) continue;
-                msg.channel.send(r.reply).catch(() => {});
+                
+                // التعديل هنا: استخدام reply بدلاً من channel.send
+                msg.reply({ content: r.reply, allowedMentions: { repliedUser: true } }).catch(() => {});
                 break; 
             }
         }
+
 
         // إضافة XP الكتابي
         const xpGain = Math.floor(Math.random() * 5) + 5;
