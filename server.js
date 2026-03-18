@@ -84,9 +84,7 @@ const client = new Client({
 });
 
 // ربط الرسائل
-const { handleMessage } = require('./XPSystem&AutoResponder.js'); 
-client.on('messageCreate', handleMessage);
-
+require('./XPSystem&AutoResponder.js')(client);
 
 // helpers
 function canUseSlash(member) {
