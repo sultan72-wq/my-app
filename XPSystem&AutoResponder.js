@@ -1,6 +1,5 @@
 // FULL DISCORD BOT SYSTEM (XP + VOICE + TOP + RANK + AUTO REPLIES)
 // جاهز للنسخ والتشغيل مباشرة
-
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -212,3 +211,9 @@ client.on('interactionCreate', async i => {
 cron.schedule('0 4 * * *', () => { daily = {}; saveDaily(); });
 cron.schedule('0 4 * * 0', () => { weekly = {}; saveWeekly(); });
 cron.schedule('0 4 1 * *', () => { monthly = {}; saveMonthly(); });
+  
+module.exports = (client) => {
+  client.on('messageCreate', msg => { ... });
+  client.on('voiceStateUpdate', (oldState, newState) => { ... });
+  client.on('interactionCreate', i => { ... });
+};
