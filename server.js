@@ -28,7 +28,7 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-const { handleMessage } = require('./XPSystem_AutoResponder.js'); 
+const { handleMessage } = require('./XPSystem&AutoResponder.js'); 
 
 // تعريف العميل أولًا
 
