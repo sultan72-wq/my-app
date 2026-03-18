@@ -1,7 +1,5 @@
 // server.js
 require('dotenv').config();
-const { handleMessage } = require('./XPSystem&AutoResponder.js');
-client.on('messageCreate', handleMessage);
 const fs = require('fs');
 const express = require('express');
 const path = require('path');
@@ -29,6 +27,21 @@ if (!TOKEN) {
   console.error('Missing DISCORD_TOKEN in env.');
   process.exit(1);
 }
+
+const { handleMessage } = require('./XPSystem_AutoResponder.js'); 
+
+// تعريف العميل أولًا
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates
+    ]
+});
+
+// ربط الرسائل
+client.on('messageCreate', handleMessage);
 
 // ========== CONFIG - عدل القيم التالية حسب سيرفرك ==========
 const OWNER_ID = '1177580652317646958';
