@@ -31,17 +31,6 @@ if (!TOKEN) {
 const { handleMessage } = require('./XPSystem_AutoResponder.js'); 
 
 // تعريف العميل أولًا
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates
-    ]
-});
-
-// ربط الرسائل
-client.on('messageCreate', handleMessage);
 
 // ========== CONFIG - عدل القيم التالية حسب سيرفرك ==========
 const OWNER_ID = '1177580652317646958';
@@ -89,6 +78,17 @@ const client = new Client({
   intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ],
   partials: [ Partials.Channel ]
 });
+intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates
+    ]
+});
+
+// ربط الرسائل
+client.on('messageCreate', handleMessage);
+
 
 // helpers
 function canUseSlash(member) {
