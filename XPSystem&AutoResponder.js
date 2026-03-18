@@ -127,33 +127,38 @@ module.exports = function(client) {
     // 4. معالجة الرسائل (XP + الردود التلقائية)
     // ==========================================
     client.on('messageCreate', async msg => {
-        if (msg.author.bot || !msg.guild) return;
+    if (msg.author.bot || !msg.guild) return;
 
-        // تنفيذ الأوامر النصية
-        await handleCommands(msg);
+    // تنفيذ الأوامر النصية
+    await handleCommands(msg);
 
-        // قائمة الردود التلقائية
-        const autoReplies = [
-            { trigger: ['السلام عليكم'], reply: 'وعليكم السلام ورحمة الله وبركاته منور/ه ❣️' },
-            { trigger: ['هلا'], reply: 'اهلين منور/ه❣️' },
-            { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
-            { trigger: ['-'], reply: `لا تنسى تقييمك للإداري <@${msg.author.id}> في https://discord.com`, roles: [SUPPORT_ROLE] },
-            { trigger: ['رابط'], reply: 'https://discord.gg/znkKxAsWWh', adminOnly: true },
-            { trigger: ['شعار'], reply: '! 𝗠𝟳 -' }
-        ];
+    // قائمة الردود التلقائية
+    const autoReplies = [
+        { trigger: ['السلام عليكم'], reply: 'وعليكم السلام ورحمة الله وبركاته منور/ه ❣️' },
+        { trigger: ['هلا'], reply: 'اهلين منور/ه❣️' },
+        { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
+        { trigger: ['-'], reply: `لا تنسى تقييمك للإداري <@${msg.author.id}> في https://discord.com/channels/1225825173358379131/1367573165898862602`, roles: [SUPPORT_ROLE] },
+        { trigger: ['رابط'], reply: 'https://discord.gg/znkKxAsWWh', adminOnly: true },
+        { trigger: ['شعار'], reply: '! 𝗠𝟳 -' }
+    ];
 
-        for (const r of autoReplies) {
-            if (r.trigger.some(t => msg.content.includes(t))) {
-                // فحص صلاحية الأدمن
-                if (r.adminOnly && !msg.member.permissions.has('Administrator')) continue;
-                // فحص رتبة الدعم الفني
-                if (r.roles && !msg.member.roles.cache.has(SUPPORT_ROLE)) continue;
-                
-                msg.reply({ content: r.reply }).catch(() => {});
-                break; 
-            }
+    // تنظيف نص الرسالة من المسافات الزائدة (قبل وبعد الكلمة)
+    const messageContent = msg.content.trim();
+
+    for (const r of autoReplies) {
+        // التعديل هنا: نتحقق إذا كان نص الرسالة كاملاً موجوداً ضمن الـ trigger
+        if (r.trigger.includes(messageContent)) {
+            
+            // فحص صلاحية الأدمن
+            if (r.adminOnly && !msg.member.permissions.has('Administrator')) continue;
+            
+            // فحص رتبة الدعم الفني
+            if (r.roles && !msg.member.roles.cache.has(SUPPORT_ROLE)) continue;
+            
+            msg.reply({ content: r.reply }).catch(() => {});
+            break; 
         }
-
+    }
         // إضافة XP الكتابي (عشوائي بين 5 و 10)
         const xpGain = Math.floor(Math.random() * 6) + 5;
         const uid = msg.author.id;
