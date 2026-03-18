@@ -1,6 +1,7 @@
 // server.js
 require('dotenv').config();
-const { handleMessage } = require('./XPSystem&AutoResponderjs');
+const { handleMessage } = require('./XPSystem&AutoResponder.js');
+client.on('messageCreate', handleMessage);
 const fs = require('fs');
 const express = require('express');
 const path = require('path');
