@@ -97,15 +97,19 @@ function addXP(id, amount, type = 'text', member) {
 
   xp[id][type] += amount;
 
-  const newL = getLevel(xp[id][type]);
-  if (newL > xp[id].level) {
-    const oldL = xp[id].level;
-    xp[id].level = newL;
-    levelUp(member, oldL, newL);
+  // التحقق من اللفل فقط إذا كان النوع "كتابي" (text)
+  if (type === 'text') {
+    const newL = getLevel(xp[id].text); // يحسب اللفل بناءً على نقاط الكتابي فقط
+    if (newL > xp[id].level) {
+      const oldL = xp[id].level;
+      xp[id].level = newL;
+      levelUp(member, oldL, newL);
+    }
   }
 
   save();
 }
+
 
 function addTime(id, amount, type, store, saveFn) {
   if (!store[id]) store[id] = { text: 0, voice: 0 };
