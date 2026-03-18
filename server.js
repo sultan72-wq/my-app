@@ -28,8 +28,6 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-const { handleMessage } = require('./XPSystem&AutoResponder.js'); 
-
 // تعريف العميل أولًا
 
 // ========== CONFIG - عدل القيم التالية حسب سيرفرك ==========
@@ -86,6 +84,7 @@ const client = new Client({
 });
 
 // ربط الرسائل
+const { handleMessage } = require('./XPSystem&AutoResponder.js'); 
 client.on('messageCreate', handleMessage);
 
 
