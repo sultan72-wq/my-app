@@ -806,7 +806,10 @@ async function sendVerifyPanel(channel) {
 }
 
 // login
-client.login(TOKEN).catch(err => {
+console.log('Trying to login...');
+client.login(TOKEN).then(() => {
+  console.log('Login promise resolved!');
+}).catch(err => {
   console.error('Failed to login :', err);
   process.exit(1);
 });
