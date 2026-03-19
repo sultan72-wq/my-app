@@ -71,7 +71,7 @@ module.exports = function(client) {
         }
 
         // --- نظام التوب المتطور ---
-        if (args[0] === 'top','Top' || args[0] === 'توب') {
+        if (['top', 'Top', 'توب'].includes(args[0])) {
             let targetStore = xp;
             let timeLabel = "السيرفر";
 
