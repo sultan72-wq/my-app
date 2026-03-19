@@ -290,21 +290,18 @@ client.on('interactionCreate', async interaction => {
        .setPlaceholder('اختر الرتبة')
        .addOptions(options);
 
-       // تعريف زر الإغلاق أولاً
        const closeTicketButton = new ButtonBuilder()
-      .setCustomId('close_buy_ticket')
-      .setLabel('اغلاق التذكرة')
-      .setStyle(ButtonStyle.Secondary);
+       .setCustomId('close_buy_ticket')
+       .setLabel('اغلاق التذكرة')
+       .setStyle(ButtonStyle.Secondary);
 
        await ticket.send({ 
        content: `أهلا بك <@${member.user.id}>\nاختر الرتبة التي تريد شراؤها من الأسفل`, 
        components: [
-           // الصف الأول للمنيو
-           new ActionRowBuilder().addComponents(menu),
-           // الصف الثاني للزر
-           new ActionRowBuilder().addComponents(closeTicketButton)
-       ]
-       }).catch(()=>{});
+       new ActionRowBuilder().addComponents(menu),
+       new ActionRowBuilder().addComponents(closeTicketButton)
+  ]
+});
 
         await interaction.editReply({ content: `✅ تم إنشاء تذكرتك: <#${ticket.id}>`, ephemeral: true });
         return;
@@ -340,96 +337,101 @@ client.on('interactionCreate', async interaction => {
       return;
     }
 
-    // buy select inside ticket
-    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('buy_select|')) {
-      await interaction.deferReply({ ephemeral: true }).catch(()=>{});
-      const ownerId = interaction.customId.split('|')[1];
-      const idx = Number(interaction.values[0]);
-      const purchase = PURCHASE_ROLES[idx];
-      if (!purchase) return interaction.editReply({ content: 'خيار غير صالح.', ephemeral: true });
+if (interaction.isStringSelectMenu() && interaction.customId.startsWith('buy_select|')) {
+  await interaction.deferReply({ ephemeral: true }).catch(()=>{});
 
-      const ch = interaction.channel;
-      await ch.setTopic(`ticket_type:buy;owner:${ownerId};choice:${idx}`).catch(()=>{});
-      const embed = new EmbedBuilder()
-        .setTitle('شراء رتبة')
-        .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**\n(سيصل الصافي: ${purchase.amountNet})\n\n*انتظر رسالة تأكيد التحويل من البروبوت*`)
-        .setColor(0xF57C00);
-      const cancelButton = new ButtonBuilder()
-      .setCustomId('cancel_payment')
-      .setLabel('الغاء عملية الدفع')
-      .setStyle(ButtonStyle.Danger);
- 
-      const row = new ActionRowBuilder().addComponents(cancelButton, closeTicketButton);
+  const ownerId = interaction.customId.split('|')[1];
+  const idx = Number(interaction.values[0]);
+  const purchase = PURCHASE_ROLES[idx];
+  if (!purchase) return interaction.editReply({ content: 'خيار غير صالح.' }).catch(()=>{});
 
-      await ch.send({ 
-      content: `<@${ownerId}>`, 
-      embeds: [embed], 
-      components: [row] 
-      }).catch(()=>{});
-      return interaction.editReply({ content: 'تم تسجيل اختيارك. قم بالتحويل وانتظر تأكيد بروبوت الدفع.', ephemeral: true });
-    }
+  const ch = interaction.channel;
+
+  await ch.setTopic(`ticket_type:buy;owner:${ownerId};choice:${idx}`).catch(()=>{});
+
+  const embed = new EmbedBuilder()
+    .setTitle('شراء رتبة')
+    .setDescription(`لقد اخترت: **${purchase.label}**\n\n**الرجاء تحويل \`${purchase.amountGross}\` إلى <@!${PAYMENT_TARGET_ID}>**\n(سيصل الصافي: ${purchase.amountNet})`)
+    .setColor(0xF57C00);
+
+  const cancelButton = new ButtonBuilder()
+    .setCustomId('cancel_payment')
+    .setLabel('الغاء عملية الدفع')
+    .setStyle(ButtonStyle.Danger);
+
+  const row = new ActionRowBuilder().addComponents(cancelButton);
+
+  await ch.send({
+    content: `<@${ownerId}>`,
+    embeds: [embed],
+    components: [row]
+  }).catch(()=>{});
+
+  return interaction.editReply({ content: '✅ تم تسجيل اختيارك.' }).catch(()=>{});
+}
 
     // apply button -> open modal
-    if (interaction.isButton() && interaction.customId === 'apply_admin') {
-      
-  const ownerId = topic.owner;
-  const key = `${interaction.guild.id}:${ownerId}`;
+if (interaction.isButton() && interaction.customId === 'apply_admin') {
+  const modal = new ModalBuilder()
+    .setCustomId('admin_apply_modal')
+    .setTitle('📝 نموذج تقديم الإدارة');
 
-  if (openTicketsByUser.has(key)) openTicketsByUser.delete(key);
+  const q1 = new TextInputBuilder().setCustomId('q1').setLabel('1- اسمك؟').setStyle(TextInputStyle.Short).setRequired(true);
+  const q2 = new TextInputBuilder().setCustomId('q2').setLabel('2- عمرك؟').setStyle(TextInputStyle.Short).setRequired(true);
+  const q3 = new TextInputBuilder().setCustomId('q3').setLabel('3- خبراتك؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
+  const q4 = new TextInputBuilder().setCustomId('q4').setLabel('4- هل كنت إداري من قبل؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
+  const q5 = new TextInputBuilder().setCustomId('q5').setLabel('5- تستعمل الشعار؟').setStyle(TextInputStyle.Paragraph).setRequired(true);
 
-  await interaction.channel.delete().catch(()=>{});
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(q1),
+    new ActionRowBuilder().addComponents(q2),
+    new ActionRowBuilder().addComponents(q3),
+    new ActionRowBuilder().addComponents(q4),
+    new ActionRowBuilder().addComponents(q5)
+  );
+
+  await interaction.showModal(modal);
   return;
 }
-      // show modal with 5 questions
-      const modal = new ModalBuilder().setCustomId('admin_apply_modal').setTitle('📝 نموذج تقديم الإدارة');
+        if (interaction.isButton()) {
+  const cid = interaction.customId;
 
-      const q1 = new TextInputBuilder().setCustomId('q1').setLabel('1- اسمك؟').setStyle(TextInputStyle.Short).setRequired(true);
-      const q2 = new TextInputBuilder().setCustomId('q2').setLabel('2- عمرك؟').setStyle(TextInputStyle.Short).setRequired(true);
-      const q3 = new TextInputBuilder().setCustomId('q3').setLabel('3- خبراتك؟ (بالتفصيل)').setStyle(TextInputStyle.Paragraph).setRequired(true);
-      const q4 = new TextInputBuilder().setCustomId('q4').setLabel('4 - هل كنت أداري من قبل؟ (اجابه ب نعم او لا)').setStyle(TextInputStyle.Paragraph).setRequired(true);
-      const q5 = new TextInputBuilder().setCustomId('q5').setLabel('5 - تستعمل شعارنا؟ (اجباري)').setStyle(TextInputStyle.Paragraph).setRequired(true);
+  // إلغاء الدفع
+  if (cid === 'cancel_payment') {
+    const topic = parseTopic(interaction.channel.topic || '');
+    if (!topic || topic.ticket_type !== 'buy') return;
 
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(q1),
-        new ActionRowBuilder().addComponents(q2),
-        new ActionRowBuilder().addComponents(q3),
-        new ActionRowBuilder().addComponents(q4),
-        new ActionRowBuilder().addComponents(q5)
-      );
+    const ownerId = topic.owner;
 
-      await interaction.showModal(modal).catch(err => {
-        // handle "Unknown interaction" / "already acknowledged" gracefully
-        console.error('showModal error:', err);
-      });
-      return;
-    
+    // يرجع التذكرة للوضع الأساسي
+    await interaction.channel.setTopic(`ticket_type:buy;owner:${ownerId}`).catch(()=>{});
 
-        if (cid === 'cancel_payment') {
-            const topic = parseTopic(interaction.channel.topic || '');
-            if (!topic || topic['ticket_type'] !== 'buy') return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
+    // حذف رسالة الدفع
+    await interaction.message.delete().catch(()=>{});
 
-            const ownerId = topic.owner;
-            await interaction.channel.setTopic(`ticket_type:buy;owner:${ownerId}`).catch(()=>{});
-            
-            // تعديل: حذف رسالة التحويل تماماً ليرجع الروم لحالته الأصلية
-            await interaction.message.delete().catch(()=>{});
+    await interaction.channel.send({
+      content: `<@${ownerId}> تم إلغاء الدفع، اختر رتبة جديدة`
+    }).catch(()=>{});
 
-            await interaction.channel.send({ content: `<@${ownerId}> تم إلغاء عملية الدفع، يمكنك اختيار رتبة جديدة من المنيو أعلاه.` }).catch(()=>{});
-            return interaction.reply({ content: '✅ تم إلغاء عملية الدفع.', ephemeral: true });
-        }
+    return interaction.reply({ content: '✅ تم الإلغاء', ephemeral: true }).catch(()=>{});
+  }
 
-        // 3. زر اغلاق التذكرة وحذف الروم (مستقل)
-        if (cid === 'close_buy_ticket') {
-            const topic = parseTopic(interaction.channel.topic || '');
-            if (!topic || topic['ticket_type'] !== 'buy') return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
+  // إغلاق التذكرة
+  if (cid === 'close_buy_ticket') {
+    const topic = parseTopic(interaction.channel.topic || '');
+    if (!topic || topic.ticket_type !== 'buy') return;
 
-            const ownerId = topic.owner;
-            const key = `${interaction.guild.id}:${ownerId}`;
-            if (openTicketsByUser.has(key)) openTicketsByUser.delete(key);
+    const ownerId = topic.owner;
+    const key = `${interaction.guild.id}:${ownerId}`;
 
-            await interaction.channel.delete().catch(()=>{});
-            return;
-        }
+    if (openTicketsByUser.has(key)) {
+      openTicketsByUser.delete(key);
+    }
+
+    await interaction.channel.delete().catch(()=>{});
+    return;
+  }
+}
     
     // modal submit -> send to answersChannel saved in applyConfigPath
     if (interaction.isModalSubmit() && interaction.customId === 'admin_apply_modal') {
