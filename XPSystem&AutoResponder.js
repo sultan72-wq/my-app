@@ -178,14 +178,28 @@ module.exports = function(client) {
             xp[uid].level = newL;
             
             const levelCh = client.channels.cache.get(LEVEL_CHANNEL);
-            if (levelCh) levelCh.send(`ألف مبروك 🥳 <@${uid}>\nانتقلت للمستوى ${newL}\nاستمر 🔥`).catch(() => {});
-
-            if (levelRoles[newL]) {
-                msg.member.roles.add(levelRoles[newL]).catch(() => {});
-                const role = msg.guild.roles.cache.get(levelRoles[newL]);
-                msg.author.send(`مبرووك 🥳🎉 وصلت للمستوى ${newL} وحصلت على رتبة ${role ? role.name : 'جديدة'} 🔥`).catch(() => {});
+            if (levelCh) {
+            levelCh.send(`تهانينا، <@${uid}>! 🥳🎉\nلقد انتقلت من المستوى (${newL - 1}) إلى المستوى (${newL}) 🔥\nاستمر يا وحش 🫡`)
+            .catch(() => {});
             }
+
+
+        if (levelRoles[newL]) {
+        msg.member.roles.add(levelRoles[newL]).catch(() => {});
+        const role = msg.guild.roles.cache.get(levelRoles[newL]);
+        const roleName = role ? role.name : 'جديدة';
+
+        const levelUpEmbed = {
+        color: 0xa30000, // اللون الذي اخترته (أحمر داكن)
+        title: 'ارتفاع مستوى 🔥',
+        description: `مبرووك 🥳🎉\nلقد ارتقيت للمستوى **${newL}** فحصلت على رتبة **${roleName}** 🔥\nنتمنى لك المزيد من التقدم 🫡`,
+        timestamp: new Date(),
+    };
+
+        msg.author.send({ embeds: [levelUpEmbed] }).catch(() => {});
+              }
         }
+            
         saveData();
     });
 
