@@ -134,12 +134,12 @@ module.exports = function(client) {
 
     // قائمة الردود التلقائية
     const autoReplies = [
-        { trigger: ['السلام عليكم'], reply: 'وعليكم السلام ورحمة الله وبركاته منور/ه ❣️' },
+        { trigger: ['السلام عليكم', 'سلام عليكم', 'السلام عليكم ورحمة الله وبركاته', 'السلام عليكم ورحمه الله وبركاته', 'سلام عليكم ورحمة الله وبركاته', 'سلام عليكم ورحمه الله وبركاته'], reply: 'وعليكم السلام ورحمة الله وبركاته منور/ه ❣️' },
         { trigger: ['هلا'], reply: 'اهلين منور/ه❣️' },
         { trigger: ['باك'], reply: 'ولكم منور/ه ❣️' },
         { trigger: ['-'], reply: `لا تنسى تقييمك للإداري <@${msg.author.id}> في https://discord.com/channels/1225825173358379131/1367573165898862602`, roles: [SUPPORT_ROLE] },
         { trigger: ['رابط'], reply: 'https://discord.gg/znkKxAsWWh', adminOnly: true },
-        { trigger: ['شعار'], reply: '! 𝗠𝟳 -' }
+        { trigger: ['شعار'], reply: '! 𝗠𝟳 -', roles: [SUPPORT_ROLE] }
     ];
 
     // تنظيف نص الرسالة من المسافات الزائدة (قبل وبعد الكلمة)
