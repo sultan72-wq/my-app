@@ -402,7 +402,7 @@ client.on('interactionCreate', async interaction => {
         console.error('showModal error:', err);
       });
       return;
-    }
+    
 
         if (cid === 'cancel_payment') {
             const topic = parseTopic(interaction.channel.topic || '');
