@@ -430,7 +430,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.channel.delete().catch(()=>{});
             return;
         }
-    }
+    
     // modal submit -> send to answersChannel saved in applyConfigPath
     if (interaction.isModalSubmit() && interaction.customId === 'admin_apply_modal') {
       // Defer reply so user gets confirmation
