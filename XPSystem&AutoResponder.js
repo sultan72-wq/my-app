@@ -177,11 +177,12 @@ module.exports = function(client) {
             const oldL = xp[uid].level;
             xp[uid].level = newL;
             
-            const levelCh = client.channels.cache.get(LEVEL_CHANNEL);
-            if (levelCh) {
-            levelCh.send(`تهانينا، <@${uid}>! 🥳🎉\nلقد انتقلت من المستوى (${newL - 1}) إلى المستوى (${newL}) 🔥\nاستمر يا وحش 🫡`)
-            .catch(() => {});
-            }
+         const levelCh = client.channels.cache.get(LEVEL_CHANNEL);
+         if (levelCh) {
+         levelCh.send(`تهانينا، <@${uid}>! 🥳🎉\nلقد انتقلت من المستوى **${newL - 1}** إلى المستوى **${newL}** 🔥\nاستمر يا وحش 🫡`)
+         .catch(() => {});
+         }
+
 
 
         if (levelRoles[newL]) {
