@@ -290,12 +290,22 @@ client.on('interactionCreate', async interaction => {
        .setPlaceholder('اختر الرتبة')
        .addOptions(options);
 
+       // تعريف زر الإغلاق أولاً
+       const closeTicketButton = new ButtonBuilder()
+      .setCustomId('close_buy_ticket')
+      .setLabel('اغلاق التذكرة')
+      .setStyle(ButtonStyle.Secondary);
+
        await ticket.send({ 
        content: `أهلا بك <@${member.user.id}>\nاختر الرتبة التي تريد شراؤها من الأسفل`, 
        components: [
-       new ActionRowBuilder().addComponents(menu)
+           // الصف الأول للمنيو
+           new ActionRowBuilder().addComponents(menu),
+           // الصف الثاني للزر
+           new ActionRowBuilder().addComponents(closeTicketButton)
        ]
        }).catch(()=>{});
+
         await interaction.editReply({ content: `✅ تم إنشاء تذكرتك: <#${ticket.id}>`, ephemeral: true });
         return;
       }
@@ -348,11 +358,6 @@ client.on('interactionCreate', async interaction => {
       .setCustomId('cancel_payment')
       .setLabel('الغاء عملية الدفع')
       .setStyle(ButtonStyle.Danger);
-
-      const closeTicketButton = new ButtonBuilder()
-      .setCustomId('close_buy_ticket')
-      .setLabel('اغلاق التذكرة')
-      .setStyle(ButtonStyle.Secondary);
  
       const row = new ActionRowBuilder().addComponents(cancelButton, closeTicketButton);
 
@@ -366,39 +371,7 @@ client.on('interactionCreate', async interaction => {
 
     // apply button -> open modal
     if (interaction.isButton() && interaction.customId === 'apply_admin') {
-      // الغاء عملية الدفع
-if (interaction.customId === 'cancel_payment') {
-  const topic = parseTopic(interaction.channel.topic || '');
-  if (!topic || topic['ticket_type'] !== 'buy') {
-    return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
-  }
-
-  const ownerId = topic.owner;
-
-  // حذف الاختيار
-  await interaction.channel.setTopic(`ticket_type:buy;owner:${ownerId}`).catch(()=>{});
-
-  // تعطيل الزر (مرة واحدة فقط)
-  const msg = await interaction.message.fetch();
-  const disabledRow = new ActionRowBuilder().addComponents(
-    ...msg.components[0].components.map(b => ButtonBuilder.from(b).setDisabled(true))
-  );
-  await msg.edit({ components: [disabledRow] }).catch(()=>{});
-
-  await interaction.channel.send({ 
-    content: `<@${ownerId}> تم إلغاء عملية الدفع، يمكنك اختيار رتبة جديدة.` 
-  }).catch(()=>{});
-
-  return interaction.reply({ content: '✅ تم إلغاء عملية الدفع.', ephemeral: true });
-}
-
-// اغلاق التذكرة وحذف الروم
-if (interaction.customId === 'close_buy_ticket') {
-  const topic = parseTopic(interaction.channel.topic || '');
-  if (!topic || topic['ticket_type'] !== 'buy') {
-    return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
-  }
-
+      
   const ownerId = topic.owner;
   const key = `${interaction.guild.id}:${ownerId}`;
 
@@ -431,6 +404,33 @@ if (interaction.customId === 'close_buy_ticket') {
       return;
     }
 
+        if (cid === 'cancel_payment') {
+            const topic = parseTopic(interaction.channel.topic || '');
+            if (!topic || topic['ticket_type'] !== 'buy') return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
+
+            const ownerId = topic.owner;
+            await interaction.channel.setTopic(`ticket_type:buy;owner:${ownerId}`).catch(()=>{});
+            
+            // تعديل: حذف رسالة التحويل تماماً ليرجع الروم لحالته الأصلية
+            await interaction.message.delete().catch(()=>{});
+
+            await interaction.channel.send({ content: `<@${ownerId}> تم إلغاء عملية الدفع، يمكنك اختيار رتبة جديدة من المنيو أعلاه.` }).catch(()=>{});
+            return interaction.reply({ content: '✅ تم إلغاء عملية الدفع.', ephemeral: true });
+        }
+
+        // 3. زر اغلاق التذكرة وحذف الروم (مستقل)
+        if (cid === 'close_buy_ticket') {
+            const topic = parseTopic(interaction.channel.topic || '');
+            if (!topic || topic['ticket_type'] !== 'buy') return interaction.reply({ content: '❌ هذا الزر لا يمكن استخدامه هنا.', ephemeral: true });
+
+            const ownerId = topic.owner;
+            const key = `${interaction.guild.id}:${ownerId}`;
+            if (openTicketsByUser.has(key)) openTicketsByUser.delete(key);
+
+            await interaction.channel.delete().catch(()=>{});
+            return;
+        }
+    }
     // modal submit -> send to answersChannel saved in applyConfigPath
     if (interaction.isModalSubmit() && interaction.customId === 'admin_apply_modal') {
       // Defer reply so user gets confirmation
